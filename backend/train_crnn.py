@@ -183,3 +183,4 @@ def train_crnn(num_epochs: int = 40):
 
 if __name__ == "__main__":
     train_crnn()
+
