@@ -67,6 +67,8 @@ frontend/ios/build/
 Thumbs.db
 .vscode/
 .idea/
+.mcp.json
+mcp.json
 *.swp
 *.swo
 *~
