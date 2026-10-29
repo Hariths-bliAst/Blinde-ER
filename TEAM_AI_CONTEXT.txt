@@ -1,0 +1,178 @@
+================================================================================
+BLIND-ER: MASTER AI CONTEXT & TEAM COLLABORATION GUIDE
+Project: Blind-ER (AI Innovation Competition Prototype)
+Core MVP: Context-Aware Book-to-Audiobook Scanner for Visually Impaired Users
+================================================================================
+
+HOW TO USE THIS FILE:
+Copy and paste this entire text file into your AI coding or writing assistant
+(e.g., ChatGPT, Claude, Gemini) at the start of your session. It gives your AI
+complete context on our project architecture, security rules, and your specific
+role on the 5-person Blind-ER team so it generates compatible work immediately.
+
+--------------------------------------------------------------------------------
+1. PROJECT OVERVIEW & COMPETITIVE EDGE
+--------------------------------------------------------------------------------
+- Application Name: Blind-ER
+- Target Audience: Visually impaired, legally blind, and partially sighted users.
+- Core Problem: Standard OCR-to-speech tools read scanned text robotically and
+  literally—reading out broken hyphenations, stray page numbers, and awkward
+  word-for-word translations that strip away emotional tone, genre nuance, and
+  logical narrative flow. Furthermore, most scanning apps rely on small visual
+  buttons that are inaccessible to blind users.
+- Our Innovation (The 3-Step AI Pipeline):
+  1. Custom CRNN (Convolutional Recurrent Neural Network): Trained by Project
+     Lead Hariths to accurately extract raw text from physical book pages.
+  2. Context-Aware LLM Engine (Gemini API): Acts as a professional audiobook
+     narrator and literary translator. It cleans flawed OCR output, fixes
+     structural breaks, preserves genre/emotional tone, and translates smoothly
+     into the user's target language.
+  3. Native TTS & Screen Reader Integration: Routes the expressive text directly
+     into native mobile Text-to-Speech (TTS) with full Android TalkBack and iOS
+     VoiceOver integration, controlled via a full-screen, voice-first gesture
+     interface (no tiny buttons required).
+
+--------------------------------------------------------------------------------
+2. TECHNICAL STACK & STRICT ARCHITECTURAL RULES
+--------------------------------------------------------------------------------
+- Frontend: React Native (Expo bare-compatible workflow with `expo-camera`,
+  `expo-speech`, `expo-haptics`, and native `AccessibilityInfo`).
+- Backend/Middleware: Python (FastAPI) handling CRNN routing (`/api/extract-text`)
+  and Gemini LLM orchestration (`/api/contextualize` & `/api/scan-book-page`).
+- CRITICAL SECURITY RULE:
+  * NEVER hardcode API keys, LLM tokens, or private URLs in any code or doc file.
+  * All secrets live exclusively in `.env` files, which are blocked from Git via
+    `.gitignore`. Use `.env.example` only for placeholder variable names.
+- STRICT SEPARATION OF CONCERNS (LOGIC vs. UI/STYLING):
+  * Core logic, camera capture, state machines, and API calls live ONLY in:
+    - `frontend/src/logic/`
+    - `frontend/src/api/`
+    - `backend/`
+  * UI layouts, visual themes, and stylesheets live ONLY in:
+    - `frontend/src/ui/` (Specifically `theme/`, `screens/`, and `components/`)
+
+--------------------------------------------------------------------------------
+3. PERSONALIZED GUIDE FOR MATTHEW (UI/UX & ACCESSIBILITY LEAD)
+--------------------------------------------------------------------------------
+Role Summary:
+Matthew, you are in charge of Frontend UI/UX, Visual Accessibility (for partially
+blind / low-vision users), and Screen-Reader Component Tagging (for totally blind
+users). Because our core camera and AI logic are isolated, you can freely design,
+style, and animate the interface inside `frontend/src/ui/` without risking any
+breakage to the AI pipeline or camera hooks.
+
+Your Safe Workspace (Push all your updates here):
+- `frontend/src/ui/theme/theme.js`
+  -> Global high-contrast color palettes, large typography scales, border widths.
+- `frontend/src/ui/screens/ScannerScreen.styles.js`
+  -> Stylesheet for the main scanner view.
+- `frontend/src/ui/screens/ScannerScreen.jsx`
+  -> Presentational layout of the main screen (receives data/callbacks via props).
+- `frontend/src/ui/components/AccessibleTouchOverlay.jsx` & `.styles.js`
+  -> Full-screen gesture surface (Single Tap = Scan, Double Tap = Pause/Resume,
+     Long Press = Change Language / Repeat).
+- `frontend/src/ui/components/StatusBanner.jsx` & `.styles.js`
+  -> High-contrast status bar showing current pipeline state (Idle, Scanning,
+     Extracting Text, Contextualizing with AI, Narrating).
+- `frontend/src/ui/components/TranscriptCard.jsx` & `.styles.js`
+  -> High-contrast, large-print reader card displaying the narrated passage for
+     partially sighted users.
+
+Files You Must NOT Edit:
+- Do NOT edit `frontend/src/logic/*`, `frontend/src/api/*`, or `backend/*`.
+
+Design & Accessibility Standards for Matthew:
+1. High-Contrast Palettes (WCAG AAA - 7:1+ contrast ratio):
+   - Pure black backgrounds (`#000000` or `#0A0A0E`) paired with hyper-legible
+     high-luminance accents: Safety Yellow (`#FFD600`), High-Vis Cyan (`#00E5FF`),
+     Crisp White (`#FFFFFF`), and Accessible Emerald (`#00E676`).
+2. Zero Fine-Motor Precision:
+   - Never use small icons or cramped buttons. Every interactive zone must span
+     full width or full screen (minimum 72dp height for secondary controls).
+3. TalkBack & VoiceOver Props on Every Component:
+   - Always include `accessible={true}`, `accessibilityRole`, `accessibilityLabel`,
+     `accessibilityHint`, `accessibilityState`, and `accessibilityLiveRegion="polite"`
+     (or `"assertive"` for errors/state changes).
+
+Copy-Paste Prompt for Matthew's AI Helper:
+"""
+I am Matthew, the UI/UX Lead for the Blind-ER React Native (Expo) app described
+in the context above. I only edit files inside `frontend/src/ui/`.
+Please keep all business logic out of my components—receive state and handlers
+purely via props (`status`, `statusMessage`, `narratedText`, `rawText`,
+`targetLanguage`, `isSpeaking`, `onSingleTap`, `onDoubleTap`, `onLongPress`).
+Always separate styles into a companion `*.styles.js` file using `StyleSheet.create`
+and tokens from `frontend/src/ui/theme/theme.js`. Ensure WCAG AAA high contrast
+(yellow/white/cyan on deep black), extra-large scalable typography (24pt-36pt),
+full-screen touch targets, and complete React Native TalkBack/VoiceOver
+accessibility props (`accessibilityLabel`, `accessibilityHint`, `accessibilityRole`,
+`accessibilityLiveRegion`).
+"""
+
+--------------------------------------------------------------------------------
+4. PERSONALIZED GUIDE FOR NIJAD (PITCH DECK & FEATURE BRAINSTORMING LEAD)
+--------------------------------------------------------------------------------
+Role Summary:
+Nijad, you are in charge of crafting the competition narrative, slide copy,
+system workflow explanations, and future product roadmap so Hariths can build the
+final pitch deck in Canva.
+
+Your Workspace (Save and push all your text drafts here):
+- `/docs/pitch_drafts/`
+  Specifically, edit or add to these markdown/text files in `/docs/pitch_drafts/`:
+  1. `/docs/pitch_drafts/01_problem_statement.md`
+  2. `/docs/pitch_drafts/02_system_architecture.md`
+  3. `/docs/pitch_drafts/03_user_workflow.md`
+  4. `/docs/pitch_drafts/04_future_features.md`
+
+Your 4 Core Deliverables for Hariths's Canva Deck:
+1. Problem Statement (`01_problem_statement.md`):
+   - Quantify the accessibility gap for visually impaired and partially blind
+     readers globally.
+   - Contrast traditional OCR-to-TTS tools (robotic, literal, reads page numbers
+     and broken line wraps, destroys emotion/idioms in translation) with
+     Blind-ER's human-like, context-aware audiobook narration.
+2. System Architecture (`02_system_architecture.md`):
+   - Clearly explain our 3-Step AI Pipeline for competition judges:
+     * Step 1: Custom-trained CRNN (by Hariths) for physical book text extraction.
+     * Step 2: Gemini LLM Context & Translation Engine that repairs OCR errors,
+       infers literary genre/emotional tone, and translates naturally.
+     * Step 3: Native Mobile TTS + TalkBack/VoiceOver accessibility layer.
+3. User Workflow (`03_user_workflow.md`):
+   - Map out the "Zero-Visual-Precision" user experience:
+     * Open app -> Voice greeting + haptic pulse -> Point phone at book page ->
+       Single-tap anywhere on screen -> Audio progress cue -> Expressive audiobook
+       narration begins automatically -> Double-tap anywhere to pause/resume ->
+       Long-press anywhere to switch target language.
+4. Future Features & Ecosystem Vision (`04_future_features.md`):
+   - Brainstorm compelling Phase 2+ features that show judges Blind-ER is a
+     scalable platform, specifically covering:
+     * Audio Pitch Training & Echolocation Games: Interactive audio games that
+       help visually impaired users sharpen pitch discrimination, spatial hearing,
+       and cognitive audio mapping.
+     * IoT Smart Home Camera Integration: Connecting Blind-ER to home IoT cameras
+       for proactive spatial awareness (e.g., alerting users to obstacles,
+       identifying who is at the door, checking if stove burners are on, or
+       locating misplaced everyday items via voice query).
+     * Offline On-Device Quantized Models & Multi-Character Voice Acting.
+
+Copy-Paste Prompt for Nijad's AI Helper:
+"""
+I am Nijad, the Pitch Deck & Feature Brainstorming Lead for the Blind-ER AI
+Innovation Competition team described in the context above. Help me write crisp,
+high-impact, judge-ready pitch deck content (bullet points, speaker notes, and
+diagram descriptions) that Hariths can paste directly into Canva.
+Focus on:
+1. Problem Statement (why literal/robotic OCR fails blind readers).
+2. System Architecture (Custom CRNN -> Gemini LLM Narrator/Translator -> Native TTS).
+3. Zero-Button Accessible Workflow (TalkBack/VoiceOver + full-screen gestures).
+4. Future Ecosystem Features (specifically Audio Pitch Training Games for auditory
+   skill building and IoT Home Camera integration for real-time spatial safety).
+Format the output cleanly in Markdown so I can save it directly into the
+`/docs/pitch_drafts/` folder in the Blind-ER repository.
+"""
+
+================================================================================
+END OF TEAM_AI_CONTEXT.txt
+================================================================================
+

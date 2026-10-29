@@ -1,0 +1,74 @@
+# =============================================================================
+# Blind-ER Security & Build Ignore Configuration
+# CRITICAL: Never remove .env rules. API keys and tokens must NEVER be committed.
+# =============================================================================
+
+# Environment Variables & Secrets (CRITICAL SECURITY MANDATE)
+.env
+.env.*
+*.env
+!.env.example
+**/secrets.*
+**/*credentials*.json
+**/*service-account*.json
+
+# Python / FastAPI Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.mypy_cache/
+
+# Machine Learning / CRNN Weights & Checkpoints (Use Git LFS or external storage if large)
+*.pt
+*.pth
+*.h5
+*.onnx
+*.weights
+*.ckpt
+*.pb
+*.tflite
+
+# React Native / Expo Frontend
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+metro-health-check*
+
+# Native Mobile Build Directories (Expo Bare Workflow)
+frontend/android/app/build/
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/ios/Pods/
+frontend/ios/build/
+*.apk
+*.aab
+*.ipa
+
+# IDE, OS & Temporary Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.log
+
