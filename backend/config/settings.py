@@ -27,7 +27,7 @@ class Settings:
     CRNN_MODEL_WEIGHTS_PATH: str = os.getenv(
         "CRNN_MODEL_WEIGHTS_PATH", "./models/crnn_book_scanner.pth"
     )
-    USE_MOCK_CRNN: bool = os.getenv("USE_MOCK_CRNN", "true").lower() in (
+    USE_MOCK_CRNN: bool = os.getenv("USE_MOCK_CRNN", "false").lower() in (
         "true",
         "1",
         "yes",
