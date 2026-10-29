@@ -7,10 +7,37 @@ import { ENV } from '../config/env';
 
 /**
  * Stage 1: Sends captured camera photo to `/api/extract-text` (CRNN endpoint).
+ * If running in emulator/demo mode without a physical camera URI (`mock://`),
+ * routes to `/api/demo-scan` which synthesizes a 128x32 book strip and runs
+ * Hariths's real PyTorch CRNN model on the backend.
  * @param {string} imageUri Local file URI from Expo Camera
  * @returns {Promise<{ raw_text: string, engine: string, confidence: number }>}
  */
 export async function extractTextWithCrnn(imageUri) {
+  if (!imageUri || imageUri.startsWith('mock://')) {
+    const demoRes = await fetch(`${ENV.API_BASE_URL}/api/demo-scan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        target_language: 'English',
+        sample_text: 'Silent Light.',
+      }),
+    });
+    if (!demoRes.ok) {
+      const errText = await demoRes.text();
+      throw new Error(`CRNN Demo Scan Error (${demoRes.status}): ${errText}`);
+    }
+    const data = await demoRes.json();
+    return {
+      raw_text: data.raw_text,
+      engine: data.crnn_engine,
+      confidence: data.crnn_confidence,
+    };
+  }
+
   const formData = new FormData();
   formData.append('image', {
     uri: imageUri,
@@ -60,4 +87,3 @@ export async function contextualizeWithLlm(rawText, targetLanguage) {
 
   return response.json();
 }
-
