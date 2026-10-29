@@ -1,8 +1,11 @@
 """
-Blind-ER — FastAPI Backend Entrypoint & Flagship Mobile App Frontend
-Handles routing between the mobile client, the Custom PyTorch CRNN service,
-and the Gemini 3 Flash Literary Narrator service, and serves the complete
-consumer mobile application UI at http://localhost:8000.
+Blind-ER — FastAPI Backend Entrypoint & Live Accessible Mobile App Frontend
+Implements the Apple-inspired Minimalist High-Contrast Voice-First UX:
+  - Step 1: `AccessibleTouchable` (1 Tap = TTS Readout, 2 Taps = Execute Action)
+  - Screen 1: `OnboardingScreen` (Auto-play voice intro + Visual Impairment Profile)
+  - Screen 2: `HomeScreen` (Top 60% Massive "Book Scanner" Hero + Bottom 40% 2x2 Grid)
+  - Screen 3: `BookScannerScreen` via `FeatureLayoutTemplate` (Top 75% Camera & Text +
+    Bottom 25% Fixed 4-to-5 Button Bar: Back | Capture | Read/Stop | Next | More)
 """
 
 import uvicorn
@@ -51,33 +54,28 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Blind-ER</title>
+  <title>Blind-ER — Voice-First Assistive App</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg-app: #000000;
-      --bg-surface: #0D0E14;
-      --bg-elevated: #151722;
-      --bg-glass: rgba(21, 23, 34, 0.92);
-      --accent: #FFD600;
-      --accent-cyan: #00E5FF;
-      --accent-green: #00E676;
-      --accent-red: #FF5252;
-      --text-main: #FFFFFF;
-      --text-muted: #FFF59D;
-      --text-dim: #9E9EB8;
-      --font-reader: 20px;
+      --apple-surface: #000000;
+      --apple-primary: #1D1D1F;
+      --apple-raised: #27292C;
+      --apple-canvas: #FFFFFF;
+      --apple-faint: #F5F5F7;
+      --apple-muted: #86868B;
+      --apple-focus: #0071E3;
+      --apple-accent: #6086BD;
+      --high-vis-yellow: #FFD600;
     }
 
     @media (forced-colors: active) {
       :root {
-        --bg-app: Canvas;
-        --bg-surface: Canvas;
-        --bg-elevated: Canvas;
-        --accent: Highlight;
-        --accent-cyan: LinkText;
-        --text-main: CanvasText;
-        --text-muted: CanvasText;
+        --apple-surface: Canvas;
+        --apple-primary: Canvas;
+        --apple-canvas: CanvasText;
+        --high-vis-yellow: Highlight;
+        --apple-focus: LinkText;
       }
     }
 
@@ -90,9 +88,9 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
     }
 
     body {
-      background: radial-gradient(circle at 50% 15%, #181B2C 0%, #050508 100%);
-      color: var(--text-main);
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+      background: #0C0F12;
+      color: var(--apple-canvas);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -100,1259 +98,938 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
       padding: 16px;
     }
 
-    /* Realistic iPhone 16 Pro Titanium Bezel */
-    .device-bezel {
+    /* Apple iPhone Frame */
+    .device-shell {
       width: 412px;
       height: 868px;
       background: #000000;
-      border-radius: 54px;
+      border-radius: 48px;
       padding: 12px;
-      position: relative;
-      box-shadow:
-        0 0 0 2px #3A3D4D,
-        0 0 0 6px #181920,
-        0 30px 80px rgba(0, 0, 0, 0.9),
-        0 0 50px rgba(255, 214, 0, 0.08);
+      border: 3px solid #333538;
       display: flex;
       flex-direction: column;
     }
 
-    .device-screen {
+    .device-viewport {
       flex: 1;
-      background: var(--bg-app);
-      border-radius: 44px;
+      background: var(--apple-surface);
+      border-radius: 36px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       position: relative;
-      border: 2px solid var(--accent);
+      border: 2px solid #27292C;
     }
 
-    /* iOS Status Bar & Dynamic Island */
-    .ios-status-bar {
-      height: 48px;
-      padding: 12px 26px 0;
+    /* Minimal Status Header */
+    .ios-bar {
+      height: 44px;
+      padding: 0 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-size: 13px;
-      font-weight: 700;
-      color: #FFFFFF;
+      font-weight: 600;
+      color: var(--apple-faint);
+      border-bottom: 1px solid #1B1D20;
+      flex-shrink: 0;
+    }
+
+    .tts-live-pill {
+      background: #1D1D1F;
+      border: 1px solid var(--high-vis-yellow);
+      color: var(--high-vis-yellow);
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* Screen Container */
+    .app-screen {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      background: var(--apple-surface);
+    }
+
+    .app-screen.active {
+      display: flex;
+    }
+
+    /* AccessibleTouchable Universal Styling */
+    .a11y-touchable {
+      cursor: pointer;
+      transition: transform 0.08s ease, border-color 0.12s ease, background-color 0.12s ease;
       position: relative;
-      z-index: 20;
-      flex-shrink: 0;
     }
 
-    .dynamic-island {
-      width: 116px;
-      height: 30px;
-      background: #000000;
-      border-radius: 999px;
-      border: 1.5px solid #252736;
-      position: absolute;
-      left: 50%;
-      top: 9px;
-      transform: translateX(-50%);
+    .a11y-touchable:focus-visible,
+    .a11y-touchable.focused-touch {
+      outline: 3px solid var(--apple-focus);
+      outline-offset: -3px;
+      border-color: var(--apple-focus) !important;
+    }
+
+    .a11y-touchable:active {
+      transform: scale(0.97);
+    }
+
+    /* ===================================================================== */
+    /* SCREEN 1: ONBOARDING SCREEN                                           */
+    /* ===================================================================== */
+    .onboarding-wrap {
+      flex: 1;
+      padding: 24px 20px;
       display: flex;
-      align-items: center;
+      flex-direction: column;
       justify-content: space-between;
-      padding: 0 10px;
+      gap: 20px;
     }
 
-    .island-led {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--accent-green);
-      box-shadow: 0 0 8px var(--accent-green);
-      transition: background 0.2s ease;
-    }
-
-    .island-wave {
+    .onboarding-header {
       display: flex;
-      align-items: center;
-      gap: 2px;
-      height: 12px;
-    }
-
-    .island-wave span {
-      width: 2.5px;
-      height: 4px;
-      background: var(--accent);
-      border-radius: 2px;
-      transition: height 0.15s ease;
-    }
-
-    .island-wave.speaking span {
-      animation: eqBounce 0.55s infinite ease-in-out alternate;
-    }
-    .island-wave.speaking span:nth-child(2) { animation-delay: 0.15s; }
-    .island-wave.speaking span:nth-child(3) { animation-delay: 0.3s; }
-    .island-wave.speaking span:nth-child(4) { animation-delay: 0.1s; }
-
-    @keyframes eqBounce {
-      0% { height: 3px; }
-      100% { height: 13px; }
-    }
-
-    /* App Top Navigation Header */
-    .app-header {
-      padding: 8px 18px 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #1F2233;
-      flex-shrink: 0;
-    }
-
-    .app-logo-group {
-      display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: 8px;
     }
 
-    .app-logo-badge {
-      width: 32px;
-      height: 32px;
-      border-radius: 10px;
-      background: var(--accent);
-      color: #000000;
-      font-weight: 900;
-      font-size: 18px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .app-title {
-      font-size: 21px;
-      font-weight: 900;
-      letter-spacing: 0.6px;
-      color: var(--text-main);
-    }
-
-    .app-subtitle {
-      font-size: 10px;
-      font-weight: 800;
-      color: var(--accent);
+    .eyebrow {
+      color: var(--high-vis-yellow);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
       text-transform: uppercase;
-      letter-spacing: 0.9px;
-      display: block;
     }
 
-    .header-actions {
+    .display-title {
+      color: var(--apple-canvas);
+      font-size: 32px;
+      font-weight: 600;
+      line-height: 1.15;
+    }
+
+    .body-sub {
+      color: var(--apple-muted);
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 1.35;
+    }
+
+    .onboarding-options {
+      flex: 1;
       display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .profile-card {
+      flex: 1;
+      width: 100%;
+      padding: 24px;
+      border-radius: 11px;
+      border: 3px solid var(--high-vis-yellow);
+      background: var(--apple-primary);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    .profile-card.option-b {
+      background: #1B1D20;
+      border-color: var(--apple-canvas);
+    }
+
+    .profile-card-title {
+      font-size: 30px;
+      font-weight: 600;
+      line-height: 1.18;
+      color: var(--high-vis-yellow);
+      margin: 6px 0 8px;
+    }
+
+    .profile-card.option-b .profile-card-title {
+      color: var(--apple-canvas);
+    }
+
+    .profile-card-desc {
+      font-size: 16px;
+      font-weight: 400;
+      color: var(--apple-faint);
+      line-height: 1.35;
+    }
+
+    /* ===================================================================== */
+    /* SCREEN 2: MINIMALIST HOME SCREEN (60% HERO / 40% 2x2 GRID)            */
+    /* ===================================================================== */
+    .home-wrap {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .home-hero-60 {
+      flex: 6;
+      width: 100%;
+      background: var(--high-vis-yellow);
+      color: #000000;
+      border: 3px solid var(--apple-canvas);
+      border-radius: 11px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
       align-items: center;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: #1D1D1F;
+      margin-bottom: 12px;
+    }
+
+    .hero-icon {
+      font-size: 52px;
+      margin-bottom: 12px;
+    }
+
+    .hero-label {
+      font-size: 42px;
+      font-weight: 600;
+      color: #000000;
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+
+    .hero-hint {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1D1D1F;
+    }
+
+    .home-secondary-40 {
+      flex: 4;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .secondary-tile {
+      background: var(--apple-primary);
+      border: 2px solid var(--apple-faint);
+      border-radius: 11px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
       gap: 6px;
     }
 
-    .pill-btn {
-      background: var(--bg-elevated);
-      color: var(--accent);
-      border: 2px solid var(--accent);
-      border-radius: 999px;
-      padding: 5px 11px;
-      font-size: 12px;
-      font-weight: 900;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+    .tile-icon { font-size: 26px; }
+    .tile-label {
+      font-size: 19px;
+      font-weight: 600;
+      color: var(--apple-canvas);
     }
 
-    .pill-btn.cyan {
-      background: var(--accent-cyan);
-      color: #000000;
-      border-color: #FFFFFF;
-    }
-
-    /* Main Content Viewport */
-    .tab-viewport {
+    /* ===================================================================== */
+    /* SCREEN 3: FEATURE LAYOUT TEMPLATE (75% HERO / 25% BOTTOM BAR)         */
+    /* ===================================================================== */
+    .feature-template-wrap {
       flex: 1;
       display: flex;
       flex-direction: column;
-      padding: 12px 14px;
-      overflow-y: auto;
-      position: relative;
     }
 
-    .tab-pane {
-      display: none;
-      flex-direction: column;
-      flex: 1;
-      gap: 10px;
-    }
-
-    .tab-pane.active {
+    .feature-hero-75 {
+      flex: 7.5;
+      padding: 16px;
       display: flex;
-    }
-
-    /* Camera Viewfinder */
-    .camera-card {
-      position: relative;
-      height: 195px;
-      border-radius: 20px;
-      border: 3px solid var(--accent);
+      flex-direction: column;
+      gap: 14px;
       overflow: hidden;
-      background: #0B0D14;
-      flex-shrink: 0;
+    }
+
+    .scanner-camera-box {
+      flex: 4.2;
+      background: var(--apple-primary);
+      border: 3px solid var(--high-vis-yellow);
+      position: relative;
+      overflow: hidden;
       display: flex;
-      align-items: center;
+      flex-direction: column;
       justify-content: center;
+      align-items: center;
+      padding: 14px;
     }
 
-    #cameraVideo {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: none;
+    .book-strip-preview {
+      width: 90%;
+      background: #F5F5F7;
+      color: #1D1D1F;
+      padding: 12px 14px;
+      font-family: Georgia, serif;
+      font-size: 13px;
+      line-height: 1.4;
+      border-left: 4px solid var(--high-vis-yellow);
     }
 
-    /* Simulated Physical Book Page inside Camera Viewfinder when no webcam active */
-    .book-page-simulation {
-      width: 86%;
-      height: 82%;
-      background: linear-gradient(90deg, #ECE8DC 0%, #FAF7F0 12%, #F5F1E6 92%, #DFD9C8 100%);
-      color: #1A1A1A;
-      border-radius: 6px 10px 10px 6px;
-      padding: 12px 16px;
-      box-shadow: -6px 6px 18px rgba(0, 0, 0, 0.7), inset 10px 0 16px rgba(0,0,0,0.08);
-      font-family: Georgia, 'Times New Roman', serif;
-      position: relative;
-      transform: perspective(500px) rotateX(4deg);
-      overflow: hidden;
-    }
-
-    .book-page-header {
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 1.2px;
-      color: #555;
-      border-bottom: 1px solid #CCC;
-      padding-bottom: 3px;
-      margin-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .book-page-body {
-      font-size: 11.5px;
-      line-height: 1.42;
-      color: #181818;
-      text-align: justify;
-    }
-
-    /* Laser Scan Line Animation */
-    .scan-laser {
+    .camera-Meta-row {
       position: absolute;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: var(--accent-cyan);
-      box-shadow: 0 0 16px 4px var(--accent-cyan);
-      top: 0;
-      opacity: 0;
-      pointer-events: none;
-      z-index: 10;
-    }
-
-    .camera-card.scanning .scan-laser {
-      opacity: 1;
-      animation: laserSweep 1.3s ease-in-out infinite alternate;
-    }
-
-    @keyframes laserSweep {
-      0% { top: 8%; }
-      100% { top: 90%; }
-    }
-
-    /* Corner Reticles */
-    .reticle {
-      position: absolute;
-      width: 24px;
-      height: 24px;
-      border-color: var(--accent);
-      border-style: solid;
-      z-index: 8;
-      pointer-events: none;
-    }
-    .reticle.tl { top: 10px; left: 10px; border-width: 4px 0 0 4px; border-top-left-radius: 8px; }
-    .reticle.tr { top: 10px; right: 10px; border-width: 4px 4px 0 0; border-top-right-radius: 8px; }
-    .reticle.bl { bottom: 10px; left: 10px; border-width: 0 0 4px 4px; border-bottom-left-radius: 8px; }
-    .reticle.br { bottom: 10px; right: 10px; border-width: 0 4px 4px 0; border-bottom-right-radius: 8px; }
-
-    .camera-controls-overlay {
-      position: absolute;
-      bottom: 8px;
+      top: 8px;
       left: 10px;
       right: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      z-index: 12;
     }
 
-    .cam-chip {
-      background: rgba(0, 0, 0, 0.85);
-      color: var(--accent);
-      border: 1.5px solid var(--accent);
-      border-radius: 8px;
-      padding: 4px 9px;
+    .upload-pill {
+      background: #000000;
+      color: var(--high-vis-yellow);
+      border: 1.5px solid var(--high-vis-yellow);
+      padding: 4px 10px;
+      border-radius: 9999px;
       font-size: 11px;
-      font-weight: 900;
+      font-weight: 600;
       cursor: pointer;
     }
 
-    /* AI Pipeline Status Pill Strip */
-    .pipeline-bar {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      flex-shrink: 0;
-    }
-
-    .stage-pill {
-      background: var(--bg-surface);
-      border: 2px solid #282B3E;
-      border-radius: 10px;
-      padding: 6px 4px;
-      text-align: center;
-      font-size: 11px;
-      font-weight: 800;
-      color: var(--text-dim);
-      transition: all 0.2s ease;
-    }
-
-    .stage-pill.active {
-      background: var(--accent);
-      color: #000000;
-      border-color: #FFFFFF;
-      font-weight: 900;
-    }
-
-    .stage-pill.done {
-      background: #073B22;
-      color: #FFFFFF;
-      border-color: var(--accent-green);
-      font-weight: 900;
-    }
-
-    /* Audiobook Now Playing Card */
-    .audiobook-card {
-      flex: 1;
-      background: var(--bg-surface);
-      border: 3px solid var(--accent-cyan);
-      border-radius: 20px;
-      padding: 14px;
+    .scanner-text-overlay {
+      flex: 5.8;
+      background: var(--apple-primary);
+      border: 3px solid var(--apple-canvas);
+      padding: 18px;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      min-height: 225px;
+      overflow: hidden;
     }
 
-    .audiobook-top {
+    .overlay-top-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
-    .chapter-badge {
-      color: var(--accent-cyan);
-      font-size: 12px;
-      font-weight: 900;
-      letter-spacing: 0.7px;
-      text-transform: uppercase;
-    }
-
-    .reader-scroll {
+    .overlay-scroll {
       flex: 1;
       overflow-y: auto;
-      padding-right: 4px;
-      margin-bottom: 10px;
-      max-height: 155px;
     }
 
-    .audiobook-prose {
-      font-size: var(--font-reader);
-      font-weight: 700;
-      line-height: 1.48;
-      color: var(--text-main);
+    .overlay-reader-text {
+      color: var(--apple-canvas);
+      font-size: 23px;
+      font-weight: 600;
+      line-height: 1.42;
       user-select: text;
     }
 
-    .raw-ocr-drawer {
-      margin-top: 8px;
-      padding: 8px 10px;
-      background: #08090E;
-      border: 1.5px solid var(--accent);
-      border-radius: 10px;
-      font-family: monospace;
-      font-size: 12px;
-      color: var(--text-muted);
-      display: none;
-      white-space: pre-wrap;
-    }
-
-    /* Equalizer & Playback Controls Bar */
-    .player-footer {
-      border-top: 1.5px solid #232638;
-      padding-top: 8px;
+    /* Fixed 25% Bottom Control Bar (4 to 5 Massive Flexbox Buttons) */
+    .feature-bottom-bar-25 {
+      flex: 2.5;
+      background: #000000;
+      border-top: 3px solid var(--high-vis-yellow);
+      padding: 10px 8px;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: row;
       gap: 8px;
     }
 
-    .waveform-bars {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      height: 22px;
+    .bar-btn {
       flex: 1;
-    }
-
-    .waveform-bars span {
-      flex: 1;
-      height: 5px;
-      background: #32364F;
-      border-radius: 3px;
-      transition: height 0.12s ease, background 0.12s ease;
-    }
-
-    .waveform-bars.active span {
-      background: var(--accent-cyan);
-      animation: wavePulse 0.6s infinite ease-in-out alternate;
-    }
-    .waveform-bars.active span:nth-child(odd) { animation-duration: 0.45s; }
-    .waveform-bars.active span:nth-child(3n) { animation-duration: 0.75s; background: var(--accent); }
-
-    @keyframes wavePulse {
-      0% { height: 4px; }
-      100% { height: 22px; }
-    }
-
-    /* Full-Width Tactile Action Pad */
-    .tactile-gesture-pad {
-      display: grid;
-      grid-template-columns: 1.3fr 1fr 1fr;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
-    .tactile-btn {
-      background: var(--bg-elevated);
-      border: 2.5px solid var(--accent);
-      border-radius: 14px;
-      padding: 10px 6px;
+      height: 100%;
+      border-radius: 8px;
+      border: 3px solid var(--apple-canvas);
+      background: var(--apple-primary);
       display: flex;
       flex-direction: column;
-      align-items: center;
       justify-content: center;
-      cursor: pointer;
-      min-height: 62px;
-      transition: transform 0.08s ease;
-    }
-
-    .tactile-btn:active { transform: scale(0.96); }
-    .tactile-btn.primary { background: var(--accent); color: #000000; }
-    .tactile-btn.primary .tactile-sub,
-    .tactile-btn.primary .tactile-main { color: #000000; }
-
-    .tactile-sub {
-      font-size: 10px;
-      font-weight: 900;
-      letter-spacing: 0.6px;
-      color: var(--accent);
-      text-transform: uppercase;
-    }
-
-    .tactile-main {
-      font-size: 14px;
-      font-weight: 900;
-      color: #FFFFFF;
-      margin-top: 2px;
-    }
-
-    /* Tab 2, 3, 4 Cards */
-    .feature-card {
-      background: var(--bg-surface);
-      border: 2.5px solid var(--accent);
-      border-radius: 18px;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
+      align-items: center;
+      padding: 6px 4px;
+      text-align: center;
       gap: 6px;
     }
 
-    .feature-card-title {
-      font-size: 17px;
-      font-weight: 900;
-      color: var(--accent);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .bar-btn.capture-primary {
+      background: var(--high-vis-yellow);
+      border-color: var(--apple-canvas);
+      color: #000000;
     }
 
-    .feature-card-desc {
-      font-size: 14px;
+    .bar-btn.read-secondary {
+      background: var(--apple-primary);
+      border-color: var(--high-vis-yellow);
+    }
+
+    .bar-btn.more-overflow {
+      background: #1B1D20;
+      border-color: var(--apple-accent);
+    }
+
+    .bar-icon {
+      font-size: 26px;
       font-weight: 600;
-      line-height: 1.4;
-      color: var(--text-main);
+      line-height: 1;
     }
 
-    .pitch-arena {
-      flex: 1;
-      background: var(--bg-surface);
-      border: 3px solid var(--accent-cyan);
-      border-radius: 20px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      align-items: center;
+    .bar-label {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--apple-canvas);
+    }
+
+    .bar-btn.capture-primary .bar-icon,
+    .bar-btn.capture-primary .bar-label {
+      color: #000000;
+    }
+
+    .bar-btn.read-secondary .bar-label,
+    .bar-btn.more-overflow .bar-label {
+      color: var(--high-vis-yellow);
+    }
+
+    /* Spoken Subtitle Banner */
+    .tts-caption-bar {
+      background: #1D1D1F;
+      border-top: 1px solid #333538;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: var(--high-vis-yellow);
+      font-weight: 600;
       text-align: center;
-    }
-
-    .freq-circle {
-      width: 132px;
-      height: 132px;
-      border-radius: 50%;
-      border: 5px solid var(--accent);
-      background: radial-gradient(circle, rgba(255,214,0,0.18) 0%, rgba(0,0,0,0.9) 75%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 0 25px rgba(255, 214, 0, 0.25);
-    }
-
-    .pitch-grid {
-      width: 100%;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    /* Bottom App Tab Bar */
-    .bottom-tab-bar {
-      height: 68px;
-      background: #08090F;
-      border-top: 2px solid #222538;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      padding: 6px 10px 10px;
       flex-shrink: 0;
-    }
-
-    .nav-tab {
-      background: transparent;
-      border: none;
-      color: var(--text-dim);
+      min-height: 34px;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 3px;
-      font-size: 11px;
-      font-weight: 800;
-      cursor: pointer;
-      border-radius: 12px;
     }
-
-    .nav-tab.active {
-      color: var(--accent);
-      background: rgba(255, 214, 0, 0.12);
-    }
-
-    .nav-icon { font-size: 19px; line-height: 1; }
 
     @media (max-width: 480px) {
       body { padding: 0; }
-      .device-bezel {
-        width: 100vw;
-        height: 100vh;
-        border-radius: 0;
-        padding: 0;
-        box-shadow: none;
-      }
-      .device-screen { border-radius: 0; border: none; }
+      .device-shell { width: 100vw; height: 100vh; border-radius: 0; padding: 0; border: none; }
+      .device-viewport { border-radius: 0; border: none; }
     }
   </style>
 </head>
 <body>
 
-  <main class="device-bezel" aria-label="Blind-ER Accessible Mobile Application">
-    <div class="device-screen" id="appScreen">
+  <main class="device-shell" aria-label="Blind-ER Assistive Mobile App">
+    <div class="device-viewport">
 
-      <!-- Native iOS Status Bar & Dynamic Island -->
-      <div class="ios-status-bar">
-        <span id="clockTime">9:41</span>
-        <div class="dynamic-island" title="Live Voice & AI Activity Indicator">
-          <div class="island-led" id="islandLed"></div>
-          <div class="island-wave" id="islandWave">
-            <span></span><span></span><span></span><span></span>
-          </div>
-        </div>
-        <span>5G 100% 🔋</span>
+      <!-- Top Status Bar -->
+      <div class="ios-bar">
+        <span>9:41</span>
+        <span class="tts-live-pill" id="a11yModeBadge">1-Tap: Read • 2-Tap: Select</span>
+        <span>5G 100%</span>
       </div>
 
-      <!-- App Brand & Quick Accessibility Header -->
-      <header class="app-header">
-        <div class="app-logo-group">
-          <div class="app-logo-badge" aria-hidden="true">B</div>
-          <div>
-            <div class="app-title">Blind-ER</div>
-            <span class="app-subtitle" id="headerStateSubtitle">● Voice-First Ready</span>
-          </div>
-        </div>
-        <div class="header-actions">
-          <button class="pill-btn" onclick="cycleContrastTheme()" aria-label="Switch high contrast theme">🎨 AAA</button>
-          <button class="pill-btn" id="fontToggleBtn" onclick="toggleReaderFont()" aria-label="Toggle extra large font">Aa 20pt</button>
-          <button class="pill-btn cyan" id="langHeaderBtn" onclick="cycleLanguage()" aria-label="Switch narration language">🌐 EN</button>
-        </div>
-      </header>
-
-      <!-- Tab Content Area -->
-      <div class="tab-viewport">
-
-        <!-- =============================================================== -->
-        <!-- TAB 1: BOOK-TO-AUDIOBOOK SCANNER (MAIN MVP SCREEN)              -->
-        <!-- =============================================================== -->
-        <section class="tab-pane active" id="tab-scanner" aria-label="Book Scanner and Audiobook Player">
-
-          <!-- Live Document Camera Viewfinder -->
-          <div class="camera-card" id="cameraCard" onclick="triggerBookScan()">
-            <div class="scan-laser"></div>
-            <div class="reticle tl"></div>
-            <div class="reticle tr"></div>
-            <div class="reticle bl"></div>
-            <div class="reticle br"></div>
-
-            <video id="cameraVideo" autoplay playsinline muted></video>
-
-            <div class="book-page-simulation" id="bookSimulation">
-              <div class="book-page-header">
-                <span>CHAPTER IV: THE SILENT LIGHTHOUSE</span>
-                <span>PAGE 42</span>
-              </div>
-              <div class="book-page-body" id="simulatedBookPageText">
-                The wind howled ac- ross the jagged cliffs of Northum- berland, car- rying with it the bitter scent of salt and approaching storm. Elara clutched her weath- ered lantern tighter. "Someone left the bea- con burning," she whis- pered into the dark- ness...
-              </div>
-            </div>
-
-            <div class="camera-controls-overlay" onclick="event.stopPropagation()">
-              <button class="cam-chip" onclick="toggleWebcam()" id="webcamBtn">📷 Live Camera</button>
-              <label class="cam-chip">
-                📁 Scan Photo
-                <input type="file" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)" />
-              </label>
-              <button class="cam-chip" onclick="cycleSampleBookPage()">📖 Next Page</button>
-            </div>
-          </div>
-
-          <!-- 3-Stage AI Pipeline Stepper -->
-          <div class="pipeline-bar" role="status" aria-live="polite">
-            <div class="stage-pill" id="stage1Pill">1. CRNN 99.6%</div>
-            <div class="stage-pill" id="stage2Pill">2. Gemini 3 AI</div>
-            <div class="stage-pill" id="stage3Pill">3. Native TTS</div>
-          </div>
-
-          <!-- Expressive Audiobook Now Playing Card -->
-          <div class="audiobook-card">
-            <div>
-              <div class="audiobook-top">
-                <span class="chapter-badge" id="nowPlayingTitle">🎧 TAP SCREEN TO SCAN PAGE</span>
-                <button class="cam-chip" onclick="toggleRawOcrDrawer()" id="rawCompareBtn">🔍 View Raw OCR</button>
-              </div>
-              <div class="reader-scroll">
-                <p class="audiobook-prose" id="audiobookProse">
-                  Tap anywhere on the book viewfinder or press "Scan Page" below. Blind-ER extracts the page using our custom PyTorch CRNN, repairs and translates the prose with Gemini 3 Flash, and narrates it aloud.
-                </p>
-                <div class="raw-ocr-drawer" id="rawOcrDrawer"></div>
-              </div>
-            </div>
-
-            <div class="player-footer">
-              <div class="waveform-bars" id="waveformBars">
-                <span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span>
-              </div>
-              <button class="cam-chip" id="speedBtn" onclick="cyclePlaybackSpeed()">1.0x</button>
-            </div>
-          </div>
-
-          <!-- Full-Width Zero-Precision Tactile Gesture Bar -->
-          <div class="tactile-gesture-pad">
-            <button class="tactile-btn primary" onclick="triggerBookScan()">
-              <span class="tactile-sub">1 Tap Anywhere</span>
-              <span class="tactile-main">📸 Scan Page</span>
-            </button>
-            <button class="tactile-btn" style="border-color: var(--accent-cyan)" onclick="togglePlayPause()">
-              <span class="tactile-sub" style="color: var(--accent-cyan)">2 Taps</span>
-              <span class="tactile-main" id="playPauseBtnText">▶️ Play</span>
-            </button>
-            <button class="tactile-btn" style="border-color: var(--accent-green)" onclick="cycleLanguage()">
-              <span class="tactile-sub" style="color: var(--accent-green)">Hold</span>
-              <span class="tactile-main" id="langPadText">🌐 English</span>
-            </button>
-          </div>
-        </section>
-
-        <!-- =============================================================== -->
-        <!-- TAB 2: SCANNED AUDIOBOOK LIBRARY                                -->
-        <!-- =============================================================== -->
-        <section class="tab-pane" id="tab-library" aria-label="Saved Audiobook Library">
-          <div class="feature-card" style="border-color: var(--accent-cyan)">
-            <div class="feature-card-title" style="color: var(--accent-cyan)">
-              <span>📚 My Audiobook Library</span>
-              <span style="font-size:12px" id="libraryCountBadge">3 Saved Chapters</span>
-            </div>
-            <p class="feature-card-desc">
-              Every physical book page you scan is automatically cleaned, translated, and saved for offline replay.
+      <!-- ================================================================= -->
+      <!-- SCREEN 1: AUDIO ONBOARDING & SETUP (OnboardingScreen.js)          -->
+      <!-- ================================================================= -->
+      <section class="app-screen active" id="screen-onboarding" aria-label="Audio Onboarding Screen">
+        <div class="onboarding-wrap">
+          <div class="onboarding-header" onclick="playOnboardingIntro()" style="cursor:pointer">
+            <span class="eyebrow">BLIND-ER • VOICE-FIRST SETUP (TAP TO HEAR INTRO)</span>
+            <h1 class="display-title">Select your visual experience level.</h1>
+            <p class="body-sub">
+              Tap any item once to hear what it is. Double-tap to select it.
             </p>
           </div>
-          <div id="libraryList" style="display:flex; flex-direction:column; gap:10px;"></div>
-        </section>
 
-        <!-- =============================================================== -->
-        <!-- TAB 3: AUDIO PITCH & ECHOLOCATION TRAINING GAME                 -->
-        <!-- =============================================================== -->
-        <section class="tab-pane" id="tab-pitch" aria-label="Audio Pitch and Echolocation Training Game">
-          <div class="pitch-arena">
-            <div>
-              <span class="chapter-badge">🎯 HARMONIC NAVIGATOR • AUDITORY TRAINING</span>
-              <h2 style="font-size:20px; font-weight:900; margin-top:4px; color:var(--accent)">
-                Pitch Discrimination Challenge
-              </h2>
-              <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">
-                Train spatial hearing and frequency sensitivity. Tap the sonar orb to hear two tones, then identify if the second tone is higher or lower.
+          <div class="onboarding-options">
+            <!-- Option A -->
+            <button
+              type="button"
+              class="profile-card a11y-touchable"
+              data-label="Option A: Partially Blind or Low Vision"
+              data-hint="Sets interface to high contrast yellow on black with large text. Double tap to select."
+              data-action="select-low-vision"
+            >
+              <span class="eyebrow">OPTION A • HIGH CONTRAST</span>
+              <div class="profile-card-title">Partially Blind /<br/>Low Vision</div>
+              <p class="profile-card-desc">
+                High-contrast color blocking &amp; oversized SF Pro typography
               </p>
+            </button>
+
+            <!-- Option B -->
+            <button
+              type="button"
+              class="profile-card option-b a11y-touchable"
+              data-label="Option B: Fully Blind"
+              data-hint="Relies entirely on audio feedback and maximizes edge to edge touch targets. Double tap to select."
+              data-action="select-fully-blind"
+            >
+              <span class="eyebrow" style="color:#6086BD">OPTION B • AUDIO-FIRST</span>
+              <div class="profile-card-title">Fully Blind</div>
+              <p class="profile-card-desc">
+                Complete voice guidance &amp; maximum full-width touch zones
+              </p>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SCREEN 2: MINIMALIST HOME SCREEN (HomeScreen.js)                  -->
+      <!-- ================================================================= -->
+      <section class="app-screen" id="screen-home" aria-label="Minimalist Home Screen">
+        <div class="home-wrap">
+          <!-- Top 60% Hero Element: Massive "Book Scanner" Button -->
+          <button
+            type="button"
+            class="home-hero-60 a11y-touchable"
+            data-label="Book Scanner"
+            data-hint="Double tap to open camera."
+            data-action="nav-scanner"
+          >
+            <span class="hero-eyebrow">PRIMARY AI TOOL • TOP 60%</span>
+            <span class="hero-icon" aria-hidden="true">📖</span>
+            <span class="hero-label">Book Scanner</span>
+            <span class="hero-hint">1 Tap: Hear Label • 2 Taps: Open Camera</span>
+          </button>
+
+          <!-- Bottom 40% Secondary Elements: 2x2 Grid of Massive Hitboxes -->
+          <div class="home-secondary-40">
+            <button
+              type="button"
+              class="secondary-tile a11y-touchable"
+              data-label="Auditory Games"
+              data-hint="Audio pitch training game. Double tap to play a pitch challenge."
+              data-action="play-pitch-demo"
+            >
+              <span class="tile-icon" aria-hidden="true">🎯</span>
+              <span class="tile-label">Auditory Games</span>
+            </button>
+
+            <button
+              type="button"
+              class="secondary-tile a11y-touchable"
+              data-label="Smart Home Cameras"
+              data-hint="IoT home safety status. Double tap to hear room report."
+              data-action="iot-status"
+            >
+              <span class="tile-icon" aria-hidden="true">🏠</span>
+              <span class="tile-label">Smart Home</span>
+            </button>
+
+            <button
+              type="button"
+              class="secondary-tile a11y-touchable"
+              data-label="Saved Library"
+              data-hint="Double tap to hear your last scanned audiobook chapter."
+              data-action="read-saved"
+            >
+              <span class="tile-icon" aria-hidden="true">📚</span>
+              <span class="tile-label">Library</span>
+            </button>
+
+            <button
+              type="button"
+              class="secondary-tile a11y-touchable"
+              data-label="Settings"
+              data-hint="Double tap to return to visual impairment onboarding setup."
+              data-action="nav-onboarding"
+            >
+              <span class="tile-icon" aria-hidden="true">⚙️</span>
+              <span class="tile-label">Settings</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SCREEN 3: BOOK SCANNER FEATURE TEMPLATE (BookScannerScreen.js)    -->
+      <!-- ================================================================= -->
+      <section class="app-screen" id="screen-scanner" aria-label="Book to Audio Scanner">
+        <div class="feature-template-wrap">
+
+          <!-- TOP / MIDDLE AREA (75% HERO CONTENT) -->
+          <div class="feature-hero-75">
+            <!-- Camera View -->
+            <div
+              class="scanner-camera-box a11y-touchable"
+              data-label="Camera Viewfinder"
+              data-hint="Point at book page. Double tap to capture page."
+              data-action="scanner-capture"
+            >
+              <div class="camera-meta-row" onclick="event.stopPropagation()">
+                <span class="eyebrow" id="crnnBadgeText">CRNN 99.6% • DOCUMENT LENS</span>
+                <label class="upload-pill">
+                  📁 Upload Photo
+                  <input type="file" accept="image/*" style="display:none" onchange="handleFileUpload(event)" />
+                </label>
+              </div>
+
+              <div class="book-strip-preview" id="bookPreviewBox">
+                <strong>CHAPTER IV: THE SILENT LIGHTHOUSE (p. 42)</strong><br/>
+                The wind howled ac- ross the jagged cliffs of Northum- berland, car- rying with it the bitter scent of salt and approaching storm...
+              </div>
             </div>
 
-            <div class="freq-circle" onclick="playPitchChallenge()" role="button" aria-label="Play reference and target audio tones">
-              <span style="font-size:28px;">🔊</span>
-              <span style="font-size:14px; font-weight:900; color:var(--accent); margin-top:4px;" id="pitchOrbLabel">TAP TO HEAR</span>
-              <span style="font-size:11px; color:var(--text-dim);" id="pitchHzLabel">440 Hz Reference</span>
-            </div>
-
-            <div style="font-size:15px; font-weight:800; color:#FFF;" id="pitchFeedbackText">
-              Score: 0 • Streak: 0 🔥
-            </div>
-
-            <div class="pitch-grid">
-              <button class="tactile-btn" style="border-color: var(--accent-cyan)" onclick="submitPitchGuess('LOWER')">
-                <span class="tactile-sub" style="color: var(--accent-cyan)">Swipe Left</span>
-                <span class="tactile-main">🔉 Lower Pitch</span>
-              </button>
-              <button class="tactile-btn" style="border-color: var(--accent-green)" onclick="submitPitchGuess('HIGHER')">
-                <span class="tactile-sub" style="color: var(--accent-green)">Swipe Right</span>
-                <span class="tactile-main">🔊 Higher Pitch</span>
-              </button>
+            <!-- Large Text Display Overlay -->
+            <div class="scanner-text-overlay">
+              <div class="overlay-top-row">
+                <span class="eyebrow" id="scannerLangBadge">AUDIOBOOK OUTPUT (ENGLISH)</span>
+                <span class="tts-live-pill" id="scannerStatePill">READY</span>
+              </div>
+              <div class="overlay-scroll">
+                <p class="overlay-reader-text" id="scannerOutputText">
+                  Double-tap "Capture" in the bottom bar to extract text with CRNN and narrate with Gemini 3 Flash. Tap any button once to hear what it does.
+                </p>
+              </div>
             </div>
           </div>
-        </section>
 
-        <!-- =============================================================== -->
-        <!-- TAB 4: SMART HOME IoT CAMERA ASSISTANT                          -->
-        <!-- =============================================================== -->
-        <section class="tab-pane" id="tab-iot" aria-label="Smart Home IoT Spatial Safety Assistant">
-          <div class="feature-card" style="border-color: var(--accent-green)">
-            <div class="feature-card-title" style="color: var(--accent-green)">
-              <span>🏠 Blind-ER Home IoT Mesh</span>
-              <span style="font-size:12px">3 Cameras Online</span>
-            </div>
-            <p class="feature-card-desc">
-              Tap any room camera below for real-time voice descriptions of home hazards, visitors, and misplaced items.
-            </p>
+          <!-- BOTTOM CONTROL BAR (25% FIXED, 5 MASSIVE FLEXBOX BUTTONS) -->
+          <div class="feature-bottom-bar-25" role="menubar" aria-label="Feature Control Bar">
+            <!-- Button 1 (Far Left): Back / Before -->
+            <button
+              type="button"
+              class="bar-btn a11y-touchable"
+              data-label="Back"
+              data-hint="Double tap to return to the Home Screen."
+              data-action="nav-home"
+            >
+              <span class="bar-icon" aria-hidden="true">←</span>
+              <span class="bar-label">Back</span>
+            </button>
+
+            <!-- Button 2 (Center Left): Capture -->
+            <button
+              type="button"
+              class="bar-btn capture-primary a11y-touchable"
+              data-label="Capture"
+              data-hint="Double tap to scan the book page and translate with AI."
+              data-action="scanner-capture"
+            >
+              <span class="bar-icon" aria-hidden="true">◎</span>
+              <span class="bar-label">Capture</span>
+            </button>
+
+            <!-- Button 3 (Center Right): Read / Stop -->
+            <button
+              type="button"
+              class="bar-btn read-secondary a11y-touchable"
+              id="readStopBtn"
+              data-label="Read Aloud"
+              data-hint="Double tap to start or stop reading the scanned passage."
+              data-action="scanner-read-stop"
+            >
+              <span class="bar-icon" id="readStopIcon" aria-hidden="true">🔊</span>
+              <span class="bar-label" id="readStopLabel">Read</span>
+            </button>
+
+            <!-- Button 4 (Far Right): Next -->
+            <button
+              type="button"
+              class="bar-btn a11y-touchable"
+              data-label="Next Page"
+              data-hint="Double tap to advance to the next book page and scan."
+              data-action="scanner-next"
+            >
+              <span class="bar-icon" aria-hidden="true">→</span>
+              <span class="bar-label">Next</span>
+            </button>
+
+            <!-- Button 5 (Overflow Rule — Max 5 Buttons): More Auditory Menu -->
+            <button
+              type="button"
+              class="bar-btn more-overflow a11y-touchable"
+              data-label="More Auditory Menu"
+              data-hint="Double tap to cycle target translation language."
+              data-action="scanner-more"
+            >
+              <span class="bar-icon" aria-hidden="true">•••</span>
+              <span class="bar-label">More</span>
+            </button>
           </div>
 
-          <div class="feature-card" style="border-color: var(--accent-red); cursor:pointer" onclick="speakIoTAlert('Warning: Kitchen camera detects the front-left stove burner is still switched on and unattended. Please turn off the dial.')">
-            <div class="feature-card-title" style="color: var(--accent-red)">
-              <span>🔥 Kitchen Stove Cam</span>
-              <span>⚠️ HAZARD ALERT</span>
-            </div>
-            <p class="feature-card-desc">
-              Front-left burner is active with no pot detected. Tap to hear spatial safety guidance.
-            </p>
-          </div>
+        </div>
+      </section>
 
-          <div class="feature-card" style="cursor:pointer" onclick="speakIoTAlert('Living Room Camera: Your house keys are on the dining table, approximately two feet to the left of your coffee mug at the 10 o clock position.')">
-            <div class="feature-card-title">
-              <span>🔑 Object Finder ("Where are my keys?")</span>
-              <span>10 O'Clock</span>
-            </div>
-            <p class="feature-card-desc">
-              Located on dining table, 2 ft left of coffee mug (10 o'clock position). Tap to speak directions.
-            </p>
-          </div>
-
-          <div class="feature-card" style="border-color: var(--accent-cyan); cursor:pointer" onclick="speakIoTAlert('Front Door Camera: A courier package is resting on the welcome mat on the right side of the doorway. Path is otherwise clear.')">
-            <div class="feature-card-title" style="color: var(--accent-cyan)">
-              <span>🚪 Front Doorway Cam</span>
-              <span>📦 Package Detected</span>
-            </div>
-            <p class="feature-card-desc">
-              1 parcel detected on right side of welcome mat. Hallway path is clear of obstacles.
-            </p>
-          </div>
-        </section>
-
+      <!-- Live Spoken TTS Caption Footer -->
+      <div class="tts-caption-bar" id="ttsCaptionBar" aria-live="polite">
+        🔊 Tap once on any item to hear its voice label. Double-tap to select.
       </div>
-
-      <!-- Native App Bottom Navigation Bar -->
-      <nav class="bottom-tab-bar" aria-label="Primary App Navigation">
-        <button class="nav-tab active" onclick="switchTab('scanner', this)">
-          <span class="nav-icon" aria-hidden="true">📖</span>
-          <span>Scanner</span>
-        </button>
-        <button class="nav-tab" onclick="switchTab('library', this)">
-          <span class="nav-icon" aria-hidden="true">📚</span>
-          <span>Library</span>
-        </button>
-        <button class="nav-tab" onclick="switchTab('pitch', this)">
-          <span class="nav-icon" aria-hidden="true">🎯</span>
-          <span>Pitch Game</span>
-        </button>
-        <button class="nav-tab" onclick="switchTab('iot', this)">
-          <span class="nav-icon" aria-hidden="true">🏠</span>
-          <span>Home IoT</span>
-        </button>
-      </nav>
 
     </div>
   </main>
 
   <script>
-    const LANGUAGES = [
-      { name: 'English', code: 'EN', locale: 'en-US' },
-      { name: 'Malay', code: 'MS', locale: 'ms-MY' },
-      { name: 'Spanish', code: 'ES', locale: 'es-ES' },
-      { name: 'French', code: 'FR', locale: 'fr-FR' },
-      { name: 'Mandarin', code: 'ZH', locale: 'zh-CN' }
-    ];
+    const DOUBLE_TAP_MS = 360;
+    const LANGUAGES = ['English', 'Malay', 'Spanish', 'French', 'Mandarin'];
+    const LOCALES = {
+      English: 'en-US',
+      Malay: 'ms-MY',
+      Spanish: 'es-ES',
+      French: 'fr-FR',
+      Mandarin: 'zh-CN'
+    };
 
-    const SAMPLE_BOOK_PAGES = [
+    const BOOK_PAGES = [
       {
-        title: 'Chapter IV: The Silent Lighthouse',
+        heading: 'CHAPTER IV: THE SILENT LIGHTHOUSE (p. 42)',
         strip: 'Silent Light.',
-        raw: "CHAP- TER IV: THE SILENT LIGHTHOUSE -- p. 42\\nThe wind howled ac- ross the jagged cliffs of Northum- berland, car- rying with it the bitter scent of salt and approaching storm. Elara clutched her weath- ered lantern tighter. 'Someone left the bea- con burning,' she whis- pered into the dark- ness..."
+        preview: 'The wind howled ac- ross the jagged cliffs of Northum- berland, car- rying with it the bitter scent of salt and approaching storm...'
       },
       {
-        title: 'Chapter VII: Beneath the Northern Stars',
+        heading: 'CHAPTER V: BENEATH NORTHERN STARS (p. 43)',
         strip: 'Dark storm.',
-        raw: "CHAP- TER VII: BENEATH THE STARS -- p. 108\\nAcross the fro- zen valley, a lone wolf called out to the sil- ver moon. Marcus pulled his cloak closer, his heart racing with quiet deter- mination as the ancient gate slowly swung open."
-      },
-      {
-        title: 'Science 101: How Vision & Sound Work',
-        strip: 'Sound waves.',
-        raw: "SEC- TION 3.2: AUDITORY NEURO- PLASTICITY -- p. 19\\nWhen visual input decreases, the human auditory cortex adapts remark- ably, allowing listeners to map three-dimen- sional spaces using subtle echoes and pitch shifts."
+        preview: 'Elara raised her lantern toward the stone tower. Beyond the breakers, a distant bell echoed three times across the freezing bay...'
       }
     ];
 
-    const CONTRAST_THEMES = [
-      { accent: '#FFD600', cyan: '#00E5FF', muted: '#FFF59D' },
-      { accent: '#00E5FF', cyan: '#FFD600', muted: '#B2EBF2' },
-      { accent: '#00E676', cyan: '#FFD600', muted: '#B9F6CA' }
-    ];
-
-    let currentLangIdx = 0;
-    let currentPageIdx = 0;
-    let currentThemeIdx = 0;
-    let playbackRates = [0.92, 1.05, 1.25];
-    let rateIdx = 0;
-    let isLargeFont = false;
-    let isSpeaking = false;
-    let lastNarratedPassage = '';
-    let webcamStream = null;
-
-    // Saved Audiobook Library items
-    let savedLibrary = [
-      {
-        title: 'Chapter IV: The Silent Lighthouse',
-        lang: 'English',
-        text: 'Chapter Four: The Silent Lighthouse. The wind howled across the jagged cliffs of Northumberland, carrying with it the bitter scent of salt and an approaching storm. Elara clutched her weathered lantern tighter. "Someone left the beacon burning," she whispered into the darkness.'
-      },
-      {
-        title: 'Bab Empat: Rumah Api yang Sepi',
-        lang: 'Malay',
-        text: 'Bab Empat: Rumah Api yang Sepi. Angin menderu merentasi tebing curam Northumberland, membawa bersama bau masin laut dan ribut yang semakin hampir. Elara menggenggam erat lentera usangnya.'
-      },
-      {
-        title: 'Capítulo Cuatro: El Faro Silencioso',
-        lang: 'Spanish',
-        text: 'Capítulo Cuatro: El Faro Silencioso. El viento aullaba sobre los acantilados escarpados de Northumberland, trayendo consigo el aroma amargo de la sal y de una tormenta inminente.'
-      }
-    ];
-
-    // Web Audio API Haptic/Tactile Sound Synthesizer
+    let langIndex = 0;
+    let pageIndex = 0;
+    let isSpeakingPassage = false;
+    let lastNarratedText = '';
     let audioCtx = null;
-    function getAudioCtx() {
-      if (!audioCtx) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContextClass();
-      }
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      return audioCtx;
-    }
 
-    function playTactileCue(freq = 520, duration = 0.07, type = 'sine') {
+    function playHapticTone(freq = 520, duration = 0.06) {
       try {
-        const ctx = getAudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        gain.gain.setValueAtTime(0.12, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        if (!audioCtx) {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new Ctx();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(ctx.currentTime + duration);
+        osc.stop(audioCtx.currentTime + duration);
       } catch {}
     }
 
-    function speakOutLoud(text, langName = 'English', onFinish = null) {
-      if (!('speechSynthesis' in window)) return;
+    function speakTTS(text, lang = 'English', onEnd = null) {
+      document.getElementById('ttsCaptionBar').textContent = '🔊 "' + text.slice(0, 88) + (text.length > 88 ? '..."' : '"');
+      if (!('speechSynthesis' in window)) {
+        if (onEnd) onEnd();
+        return;
+      }
       window.speechSynthesis.cancel();
-      const langObj = LANGUAGES.find((l) => l.name === langName) || LANGUAGES[0];
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = langObj.locale;
-      utter.rate = playbackRates[rateIdx];
-      utter.pitch = 0.98;
-
-      utter.onstart = () => {
-        isSpeaking = true;
-        document.getElementById('waveformBars').classList.add('active');
-        document.getElementById('islandWave').classList.add('speaking');
-        document.getElementById('playPauseBtnText').textContent = '⏸ Pause';
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = LOCALES[lang] || 'en-US';
+      u.rate = 0.96;
+      u.onend = () => {
+        if (onEnd) onEnd();
       };
-
-      const resetSpeechUI = () => {
-        isSpeaking = false;
-        document.getElementById('waveformBars').classList.remove('active');
-        document.getElementById('islandWave').classList.remove('speaking');
-        document.getElementById('playPauseBtnText').textContent = '▶️ Replay';
-        if (onFinish) onFinish();
-      };
-
-      utter.onend = resetSpeechUI;
-      utter.onerror = resetSpeechUI;
-      window.speechSynthesis.speak(utter);
+      window.speechSynthesis.speak(u);
     }
 
-    function updatePipelineUI(step, subtitleText) {
-      document.getElementById('headerStateSubtitle').textContent = '● ' + subtitleText;
-      const pills = [
-        { el: document.getElementById('stage1Pill'), label: '1. CRNN 99.6%' },
-        { el: document.getElementById('stage2Pill'), label: '2. Gemini 3 AI' },
-        { el: document.getElementById('stage3Pill'), label: '3. Native TTS' }
-      ];
-      pills.forEach((p, idx) => {
-        const s = idx + 1;
-        p.el.className = 'stage-pill';
-        if (step > s) {
-          p.el.classList.add('done');
-          p.el.textContent = '✓ ' + p.label;
-        } else if (step === s) {
-          p.el.classList.add('active');
-          p.el.textContent = p.label;
-        } else {
-          p.el.textContent = p.label;
-        }
+    function playOnboardingIntro() {
+      speakTTS(
+        'Welcome to Blind-ER. This app uses a custom voice interface. Tap any item once to hear what it is. Double-tap to select it. Please select your level of visual impairment to optimize your experience.'
+      );
+    }
+
+    function navigateToScreen(screenId, announcement) {
+      document.querySelectorAll('.app-screen').forEach((s) => s.classList.remove('active'));
+      document.getElementById('screen-' + screenId).classList.add('active');
+      if (announcement) {
+        speakTTS(announcement);
+      }
+    }
+
+    // =======================================================================
+    // STEP 1: AccessibleTouchable Engine (1 Tap = TTS Readout, 2 Taps = Act)
+    // =======================================================================
+    function attachAccessibleTouchableEngine() {
+      const elements = document.querySelectorAll('.a11y-touchable');
+      elements.forEach((el) => {
+        let lastTap = 0;
+        let singleTapTimer = null;
+
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const now = Date.now();
+          const delta = now - lastTap;
+
+          document.querySelectorAll('.a11y-touchable').forEach((b) => b.classList.remove('focused-touch'));
+          el.classList.add('focused-touch');
+
+          const label = el.getAttribute('data-label') || el.innerText.trim();
+          const hint = el.getAttribute('data-hint') || 'Double tap to select.';
+          const action = el.getAttribute('data-action');
+
+          if (delta > 0 && delta < DOUBLE_TAP_MS) {
+            // DOUBLE TAP -> Execute primary action
+            if (singleTapTimer) {
+              clearTimeout(singleTapTimer);
+              singleTapTimer = null;
+            }
+            lastTap = 0;
+            playHapticTone(840, 0.1);
+            executeAccessibleAction(action);
+          } else {
+            // ONE TAP -> Do NOT execute action; speak button label & hint via TTS
+            lastTap = now;
+            singleTapTimer = setTimeout(() => {
+              playHapticTone(440, 0.05);
+              speakTTS(label + '. ' + hint);
+              singleTapTimer = null;
+            }, DOUBLE_TAP_MS);
+          }
+        });
       });
     }
 
-    async function triggerBookScan() {
-      playTactileCue(660, 0.08, 'triangle');
-      const lang = LANGUAGES[currentLangIdx].name;
-      const pageSample = SAMPLE_BOOK_PAGES[currentPageIdx];
-      const camCard = document.getElementById('cameraCard');
-      camCard.classList.add('scanning');
+    async function executeAccessibleAction(actionName) {
+      if (actionName === 'select-low-vision') {
+        document.getElementById('a11yModeBadge').textContent = 'Mode: Low Vision (AAA)';
+        navigateToScreen(
+          'home',
+          'Partially Blind, Low Vision mode selected. Home Screen. Top 60 percent is Book Scanner. Tap once to hear, double tap to select.'
+        );
+      } else if (actionName === 'select-fully-blind') {
+        document.getElementById('a11yModeBadge').textContent = 'Mode: Fully Blind (Audio)';
+        navigateToScreen(
+          'home',
+          'Fully Blind audio mode selected. Home Screen. Top 60 percent is Book Scanner. Tap once to hear, double tap to select.'
+        );
+      } else if (actionName === 'nav-scanner') {
+        navigateToScreen(
+          'scanner',
+          'Book Scanner opened. Top area holds camera and text. Bottom bar has 5 buttons: Back, Capture, Read, Next, and More.'
+        );
+      } else if (actionName === 'nav-home') {
+        isSpeakingPassage = false;
+        updateReadStopUI(false);
+        navigateToScreen('home', 'Returned to Home Screen.');
+      } else if (actionName === 'nav-onboarding') {
+        navigateToScreen('onboarding', 'Returned to Visual Impairment Setup.');
+      } else if (actionName === 'play-pitch-demo') {
+        playHapticTone(440, 0.25);
+        setTimeout(() => playHapticTone(660, 0.25), 350);
+        speakTTS('Auditory Pitch Training Game: Reference tone 440 Hertz, second tone 660 Hertz, Higher Pitch.');
+      } else if (actionName === 'iot-status') {
+        speakTTS('Smart Home I O T Camera Report: Living room path is clear. Your keys are on the dining table at 10 o clock.');
+      } else if (actionName === 'read-saved') {
+        const textToRead = lastNarratedText || 'Chapter Four: The Silent Lighthouse. The wind howled across the jagged cliffs of Northumberland.';
+        speakTTS(textToRead, LANGUAGES[langIndex]);
+      } else if (actionName === 'scanner-capture') {
+        await runBookCapturePipeline();
+      } else if (actionName === 'scanner-read-stop') {
+        toggleReadOrStop();
+      } else if (actionName === 'scanner-next') {
+        pageIndex = (pageIndex + 1) % BOOK_PAGES.length;
+        const p = BOOK_PAGES[pageIndex];
+        document.getElementById('bookPreviewBox').innerHTML = `<strong>${p.heading}</strong><br/>${p.preview}`;
+        speakTTS('Next page loaded. Capturing page.');
+        await runBookCapturePipeline();
+      } else if (actionName === 'scanner-more') {
+        langIndex = (langIndex + 1) % LANGUAGES.length;
+        const newLang = LANGUAGES[langIndex];
+        document.getElementById('scannerLangBadge').textContent = `AUDIOBOOK OUTPUT (${newLang.toUpperCase()})`;
+        speakTTS(`More Menu: Target language changed to ${newLang}. Double tap Capture to translate.`);
+      }
+    }
 
-      updatePipelineUI(1, 'Stage 1: CRNN Extracting Text...');
-      document.getElementById('nowPlayingTitle').textContent = '⏳ SCANNING: ' + pageSample.title.toUpperCase();
+    function updateReadStopUI(speaking) {
+      isSpeakingPassage = speaking;
+      const btn = document.getElementById('readStopBtn');
+      document.getElementById('readStopIcon').textContent = speaking ? '⏹' : '🔊';
+      document.getElementById('readStopLabel').textContent = speaking ? 'Stop' : 'Read';
+      btn.setAttribute('data-label', speaking ? 'Stop Audio' : 'Read Aloud');
+    }
+
+    async function runBookCapturePipeline() {
+      const targetLanguage = LANGUAGES[langIndex];
+      const currentPage = BOOK_PAGES[pageIndex];
+      document.getElementById('scannerStatePill').textContent = 'SCANNING...';
+      speakTTS('Capturing book page and running C R N N and Gemini AI.');
 
       try {
-        setTimeout(() => {
-          updatePipelineUI(2, 'Stage 2: Gemini 3 Contextualizing (' + lang + ')...');
-        }, 420);
-
         const res = await fetch('/api/demo-scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            target_language: lang,
-            sample_text: pageSample.strip
+            target_language: targetLanguage,
+            sample_text: currentPage.strip
           })
         });
         const data = await res.json();
-        camCard.classList.remove('scanning');
-        presentScanOutput(data, pageSample.title);
+        lastNarratedText = data.narrated_text;
+        document.getElementById('scannerOutputText').textContent = data.narrated_text;
+        const conf = data.crnn_confidence ? (data.crnn_confidence * 100).toFixed(2) + '%' : '99.62%';
+        document.getElementById('crnnBadgeText').textContent = `CRNN ${conf} • ${ data.llm_model || 'GEMINI 3' }`;
+        document.getElementById('scannerStatePill').textContent = 'NARRATING';
+
+        updateReadStopUI(true);
+        speakTTS(data.narrated_text, targetLanguage, () => {
+          updateReadStopUI(false);
+          document.getElementById('scannerStatePill').textContent = 'DONE';
+        });
       } catch (err) {
-        camCard.classList.remove('scanning');
-        updatePipelineUI(0, 'Connection Alert');
+        document.getElementById('scannerStatePill').textContent = 'ERROR';
+        speakTTS('Scan failed. Please check backend connection.');
       }
     }
 
-    async function handlePhotoUpload(event) {
+    async function handleFileUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
-      playTactileCue(700, 0.08, 'triangle');
-      const lang = LANGUAGES[currentLangIdx].name;
-      const camCard = document.getElementById('cameraCard');
-      camCard.classList.add('scanning');
-      updatePipelineUI(1, 'CRNN Scanning ' + file.name + '...');
+      const targetLanguage = LANGUAGES[langIndex];
+      document.getElementById('scannerStatePill').textContent = 'UPLOADING...';
+      speakTTS('Scanning uploaded book image.');
 
       const formData = new FormData();
       formData.append('image', file);
-      formData.append('target_language', lang);
+      formData.append('target_language', targetLanguage);
 
       try {
-        setTimeout(() => {
-          updatePipelineUI(2, 'Gemini 3 Translating (' + lang + ')...');
-        }, 420);
         const res = await fetch('/api/scan-book-page', { method: 'POST', body: formData });
         const data = await res.json();
-        camCard.classList.remove('scanning');
-        presentScanOutput(data, 'Scanned Page: ' + file.name);
-      } catch (err) {
-        camCard.classList.remove('scanning');
-        updatePipelineUI(0, 'Upload Error');
-      }
-    }
-
-    function presentScanOutput(data, chapterTitle) {
-      playTactileCue(880, 0.12, 'sine');
-      const lang = data.target_language || LANGUAGES[currentLangIdx].name;
-      lastNarratedPassage = data.narrated_text;
-
-      const confPct = data.crnn_confidence ? (data.crnn_confidence * 100).toFixed(2) + '%' : '99.62%';
-      document.getElementById('nowPlayingTitle').textContent = '🎧 ' + chapterTitle + ' (' + lang.toUpperCase() + ' • ' + confPct + ')';
-      document.getElementById('audiobookProse').textContent = data.narrated_text;
-      document.getElementById('rawOcrDrawer').textContent = data.raw_text;
-
-      // Save to Library automatically
-      savedLibrary.unshift({
-        title: chapterTitle,
-        lang: lang,
-        text: data.narrated_text
-      });
-      renderLibrary();
-
-      updatePipelineUI(3, 'Stage 3: Narrating Audiobook (' + lang + ')');
-      speakOutLoud(data.narrated_text, lang, () => {
-        updatePipelineUI(0, 'Narration Complete • Tap to Scan');
-      });
-    }
-
-    function togglePlayPause() {
-      playTactileCue(480, 0.06);
-      if (isSpeaking) {
-        window.speechSynthesis.cancel();
-        isSpeaking = false;
-        document.getElementById('waveformBars').classList.remove('active');
-        document.getElementById('islandWave').classList.remove('speaking');
-        document.getElementById('playPauseBtnText').textContent = '▶️ Replay';
-        updatePipelineUI(0, 'Narration Paused');
-      } else if (lastNarratedPassage) {
-        const lang = LANGUAGES[currentLangIdx].name;
-        updatePipelineUI(3, 'Replaying Audiobook (' + lang + ')');
-        speakOutLoud(lastNarratedPassage, lang);
-      } else {
-        triggerBookScan();
-      }
-    }
-
-    function cycleLanguage() {
-      currentLangIdx = (currentLangIdx + 1) % LANGUAGES.length;
-      const langObj = LANGUAGES[currentLangIdx];
-      playTactileCue(600, 0.08);
-      document.getElementById('langHeaderBtn').textContent = '🌐 ' + langObj.code;
-      document.getElementById('langPadText').textContent = '🌐 ' + langObj.name;
-      updatePipelineUI(0, 'Language: ' + langObj.name);
-      speakOutLoud('Target language ' + langObj.name, 'English');
-    }
-
-    function cycleSampleBookPage() {
-      currentPageIdx = (currentPageIdx + 1) % SAMPLE_BOOK_PAGES.length;
-      const p = SAMPLE_BOOK_PAGES[currentPageIdx];
-      document.querySelector('.book-page-header span:first-child').textContent = p.title.toUpperCase();
-      document.getElementById('simulatedBookPageText').textContent = p.raw.split('\\n').slice(1).join(' ');
-      playTactileCue(540, 0.06);
-    }
-
-    function toggleRawOcrDrawer() {
-      const drawer = document.getElementById('rawOcrDrawer');
-      const isHidden = drawer.style.display === 'none' || !drawer.style.display;
-      drawer.style.display = isHidden ? 'block' : 'none';
-      document.getElementById('rawCompareBtn').textContent = isHidden ? '🔼 Hide Raw OCR' : '🔍 View Raw OCR';
-    }
-
-    function cyclePlaybackSpeed() {
-      rateIdx = (rateIdx + 1) % playbackRates.length;
-      const labels = ['1.0x', '1.15x', '1.3x'];
-      document.getElementById('speedBtn').textContent = labels[rateIdx];
-      playTactileCue(620, 0.05);
-    }
-
-    function toggleReaderFont() {
-      isLargeFont = !isLargeFont;
-      document.documentElement.style.setProperty('--font-reader', isLargeFont ? '25px' : '20px');
-      document.getElementById('fontToggleBtn').textContent = isLargeFont ? 'Aa 26pt XL' : 'Aa 20pt';
-      playTactileCue(580, 0.05);
-    }
-
-    function cycleContrastTheme() {
-      currentThemeIdx = (currentThemeIdx + 1) % CONTRAST_THEMES.length;
-      const t = CONTRAST_THEMES[currentThemeIdx];
-      document.documentElement.style.setProperty('--accent', t.accent);
-      document.documentElement.style.setProperty('--accent-cyan', t.cyan);
-      document.documentElement.style.setProperty('--text-muted', t.muted);
-      playTactileCue(640, 0.06);
-    }
-
-    async function toggleWebcam() {
-      const videoEl = document.getElementById('cameraVideo');
-      const simEl = document.getElementById('bookSimulation');
-      const btn = document.getElementById('webcamBtn');
-
-      if (webcamStream) {
-        webcamStream.getTracks().forEach((t) => t.stop());
-        webcamStream = null;
-        videoEl.style.display = 'none';
-        simEl.style.display = 'block';
-        btn.textContent = '📷 Live Camera';
-        return;
-      }
-
-      try {
-        webcamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        videoEl.srcObject = webcamStream;
-        videoEl.style.display = 'block';
-        simEl.style.display = 'none';
-        btn.textContent = '📖 Book View';
+        lastNarratedText = data.narrated_text;
+        document.getElementById('scannerOutputText').textContent = data.narrated_text;
+        document.getElementById('scannerStatePill').textContent = 'NARRATING';
+        updateReadStopUI(true);
+        speakTTS(data.narrated_text, targetLanguage, () => {
+          updateReadStopUI(false);
+          document.getElementById('scannerStatePill').textContent = 'DONE';
+        });
       } catch {
-        speakOutLoud('Camera preview running in simulated book mode.', 'English');
+        speakTTS('Image upload failed.');
       }
     }
 
-    function switchTab(tabId, btnEl) {
-      playTactileCue(500, 0.05);
-      document.querySelectorAll('.tab-pane').forEach((el) => el.classList.remove('active'));
-      document.querySelectorAll('.nav-tab').forEach((el) => el.classList.remove('active'));
-      document.getElementById('tab-' + tabId).classList.add('active');
-      btnEl.classList.add('active');
-
-      const tabNames = {
-        scanner: 'Book Scanner tab active',
-        library: 'Saved Audiobook Library tab active',
-        pitch: 'Harmonic Navigator Pitch Training Game active',
-        iot: 'Smart Home IoT Camera Assistant active'
-      };
-      speakOutLoud(tabNames[tabId] || '', 'English');
-    }
-
-    function renderLibrary() {
-      const container = document.getElementById('libraryList');
-      document.getElementById('libraryCountBadge').textContent = savedLibrary.length + ' Saved Chapters';
-      container.innerHTML = '';
-      savedLibrary.slice(0, 6).forEach((item) => {
-        const card = document.createElement('div');
-        card.className = 'feature-card';
-        card.style.cursor = 'pointer';
-        card.onclick = () => {
-          lastNarratedPassage = item.text;
-          speakOutLoud(item.text, item.lang);
-        };
-        card.innerHTML = `
-          <div class="feature-card-title">
-            <span>▶️ ${item.title}</span>
-            <span style="font-size:11px; color:var(--accent-cyan)">${item.lang}</span>
-          </div>
-          <p class="feature-card-desc">${item.text.slice(0, 125)}...</p>
-        `;
-        container.appendChild(card);
-      });
-    }
-
-    // Tab 3: Audio Pitch Training Game Logic
-    let refFreq = 440;
-    let targetFreq = 520;
-    let pitchScore = 0;
-    let pitchStreak = 0;
-
-    function playPitchChallenge() {
-      const ctx = getAudioCtx();
-      refFreq = 320 + Math.floor(Math.random() * 240);
-      const delta = (Math.random() > 0.5 ? 1 : -1) * (45 + Math.floor(Math.random() * 90));
-      targetFreq = refFreq + delta;
-
-      document.getElementById('pitchOrbLabel').textContent = 'LISTENING...';
-      document.getElementById('pitchHzLabel').textContent = `Tone 1: ${refFreq} Hz -> Tone 2: ? Hz`;
-
-      // Tone 1
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.frequency.setValueAtTime(refFreq, ctx.currentTime);
-      gain1.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.start(ctx.currentTime);
-      osc1.stop(ctx.currentTime + 0.45);
-
-      // Tone 2
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.frequency.setValueAtTime(targetFreq, ctx.currentTime + 0.6);
-      gain2.gain.setValueAtTime(0.2, ctx.currentTime + 0.6);
-      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.1);
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.start(ctx.currentTime + 0.6);
-      osc2.stop(ctx.currentTime + 1.1);
-
-      setTimeout(() => {
-        document.getElementById('pitchOrbLabel').textContent = 'GUESS NOW';
-      }, 1100);
-    }
-
-    function submitPitchGuess(guess) {
-      const actual = targetFreq > refFreq ? 'HIGHER' : 'LOWER';
-      if (guess === actual) {
-        pitchScore += 10;
-        pitchStreak += 1;
-        playTactileCue(880, 0.15, 'triangle');
-        const msg = `Correct! Second tone was ${targetFreq} Hertz (${actual.toLowerCase()}). Streak ${pitchStreak}.`;
-        document.getElementById('pitchFeedbackText').textContent = `✅ Score: ${pitchScore} • Streak: ${pitchStreak} 🔥`;
-        speakOutLoud(msg, 'English');
+    function toggleReadOrStop() {
+      if (isSpeakingPassage) {
+        window.speechSynthesis.cancel();
+        updateReadStopUI(false);
+        document.getElementById('scannerStatePill').textContent = 'PAUSED';
+        speakTTS('Audio stopped.');
       } else {
-        pitchStreak = 0;
-        playTactileCue(220, 0.2, 'sawtooth');
-        const msg = `Not quite. Second tone was ${targetFreq} Hertz. Tap the orb to try again.`;
-        document.getElementById('pitchFeedbackText').textContent = `❌ Score: ${pitchScore} • Streak: 0`;
-        speakOutLoud(msg, 'English');
+        const text = lastNarratedText || 'No book page captured yet. Double tap Capture to scan a page.';
+        updateReadStopUI(true);
+        speakTTS(text, LANGUAGES[langIndex], () => {
+          updateReadStopUI(false);
+        });
       }
-      document.getElementById('pitchHzLabel').textContent = `${refFreq} Hz -> ${targetFreq} Hz`;
     }
 
-    function speakIoTAlert(alertMessage) {
-      playTactileCue(740, 0.09, 'triangle');
-      speakOutLoud(alertMessage, 'English');
-    }
-
-    // Initialize Library & Live Clock
-    renderLibrary();
-    setInterval(() => {
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      document.getElementById('clockTime').textContent = `${hh}:${mm}`;
-    }, 10000);
+    window.addEventListener('DOMContentLoaded', () => {
+      attachAccessibleTouchableEngine();
+      // Attempt auto-play of onboarding voice prompt on load
+      setTimeout(() => {
+        playOnboardingIntro();
+      }, 400);
+    });
   </script>
 </body>
 </html>
@@ -1361,7 +1038,7 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
 
 @app.get("/", response_class=HTMLResponse, tags=["Mobile App Frontend"])
 async def serve_mobile_app_frontend():
-    """Serves the consumer-grade Blind-ER Mobile App Frontend."""
+    """Serves the Apple-minimalist Voice-First Blind-ER Mobile App Frontend."""
     return HTMLResponse(content=MOBILE_APP_HTML)
 
 
