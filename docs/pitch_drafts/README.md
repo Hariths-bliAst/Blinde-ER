@@ -1,13 +1,11 @@
-# Blind-ER Pitch Deck Drafts Directory (For Nijad)
+# Blind-ER Pitch Deck & Competition Deliverables (`docs/pitch_drafts/`)
 
-Welcome, **Nijad**! This `/docs/pitch_drafts/` directory is dedicated to your pitch deck scripts, slide copy, and feature brainstorming documents. **Hariths** will pull directly from these files to assemble the final competition pitch deck in Canva.
+All competition pitch deck slide copy, timed video voiceover scripts (0:00 – 2:45), architectural diagrams, future feature blueprints, and judge Q&A answers are **100% completed** in this directory:
 
-## Files to Complete & Push Here
-1. `01_problem_statement.md` — The core challenges faced by visually impaired readers and why robotic OCR-to-TTS tools fail at literature and educational books.
-2. `02_system_architecture.md` — High-level overview of the 3-step AI pipeline (Custom CRNN -> Gemini Context/Translation Engine -> Native Accessibility & TTS).
-3. `03_user_workflow.md` — Step-by-step zero-visual-precision user journey (Voice-First & Full-Screen Gesture interaction).
-4. `04_future_features.md` — Post-MVP expansion roadmap (Audio Pitch Training Games, IoT Smart Home Camera integration, Braille display sync, etc.).
+1. [`01_problem_statement.md`](./01_problem_statement.md) — WHO global visual impairment statistics, standard OCR failure analysis, and Video Script (0:00 – 0:50).
+2. [`02_system_architecture.md`](./02_system_architecture.md) — 3-Stage AI Pipeline (Custom PyTorch CRNN `99.62%` confidence + Gemini 3 Flash + Native TTS) and Video Script (0:50 – 1:35).
+3. [`03_user_workflow.md`](./03_user_workflow.md) — Zero-Button Full-Screen Gesture State Machine, WCAG AAA 19.6:1 contrast palettes, and Video Script (1:35 – 2:10).
+4. [`04_future_features.md`](./04_future_features.md) — Detailed product blueprints for **Gamified Audio Pitch/Echolocation Training Games**, **IoT Smart Home Camera Integration**, and Video Script (2:10 – 2:45).
+5. [`05_judge_qa_cheat_sheet.md`](./05_judge_qa_cheat_sheet.md) — Ready-to-use answers for the top 4 technical and product questions competition judges ask.
 
-## How to Use Your AI Assistant
-Open `TEAM_AI_CONTEXT.txt` in the root of the `Blind-ER` repository, copy its contents (especially Section 4: Personalized Guide for Nijad), and paste it into your AI helper to generate compelling, competition-winning slide copy!
-
+**Canva Presentation Link:** https://canva.link/pyoj6yiyd6agsjg *(Design ID: `DAHZbJ22Bg4`)*

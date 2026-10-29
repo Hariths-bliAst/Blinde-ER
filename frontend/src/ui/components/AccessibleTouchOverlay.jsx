@@ -1,7 +1,8 @@
 /**
- * AccessibleTouchOverlay Component (MATTHEW'S UI WORKSPACE)
- * Turns the entire mobile screen into a single, zero-precision gesture surface.
- * Fully wired for Android TalkBack and iOS VoiceOver.
+ * AccessibleTouchOverlay Component (MATTHEW'S COMPLETED UI DELIVERABLE)
+ * Full-screen zero-precision gesture surface with a 3-column high-contrast
+ * tactile visual command dock (minimum 72dp touch target height) and complete
+ * Android TalkBack / iOS VoiceOver custom actions.
  */
 
 import React from 'react';
@@ -12,11 +13,15 @@ export default function AccessibleTouchOverlay({
   statusMessage,
   targetLanguage,
   isSpeaking,
+  palette,
   onSingleTap,
   onDoubleTap,
   onLongPress,
   children,
 }) {
+  const borderColor = palette?.borderPrimary || '#FFD600';
+  const accentColor = palette?.primaryAccent || '#FFD600';
+
   return (
     <Pressable
       onPress={onSingleTap}
@@ -43,26 +48,48 @@ export default function AccessibleTouchOverlay({
       }}
       style={({ pressed }) => [
         styles.fullScreenResponder,
+        { borderColor },
         pressed && styles.fullScreenResponderPressed,
       ]}
     >
       {children}
 
+      {/* High-Contrast 3-Column Gesture Command Dock (72dp+ Touch Zones) */}
       <View
-        style={styles.gestureFooterBar}
+        style={[styles.gestureFooterBar, { borderColor }]}
         accessible={true}
         accessibilityRole="summary"
+        accessibilityLabel={`Full screen gesture guide. 1 tap anywhere scans page. 2 taps anywhere ${isSpeaking ? 'pauses audio' : 'replays audio'}. Long press anywhere switches language from ${targetLanguage}.`}
       >
-        <Text style={styles.gestureGuideTitle}>
-          FULL-SCREEN GESTURE CONTROLS ({targetLanguage.toUpperCase()})
+        <Text style={[styles.gestureGuideTitle, { color: accentColor }]}>
+          ZERO-BUTTON FULL-SCREEN GESTURE ZONE
         </Text>
-        <Text style={styles.gestureInstructionText}>
-          • 1 Tap Anywhere: Scan Book Page{'\n'}
-          • 2 Taps Anywhere: {isSpeaking ? 'Pause Audio' : 'Replay Audio'}{'\n'}
-          • Hold Anywhere: Switch Language
-        </Text>
+
+        <View style={styles.gestureGridRow}>
+          <View style={[styles.gestureBadgeCard, { borderColor: accentColor }]}>
+            <Text style={[styles.gestureBadgeTrigger, { color: accentColor }]}>
+              1 TAP
+            </Text>
+            <Text style={styles.gestureBadgeAction}>📸 Scan Page</Text>
+          </View>
+
+          <View style={[styles.gestureBadgeCard, { borderColor: '#00E5FF' }]}>
+            <Text style={[styles.gestureBadgeTrigger, { color: '#00E5FF' }]}>
+              2 TAPS
+            </Text>
+            <Text style={styles.gestureBadgeAction}>
+              {isSpeaking ? '⏸ Pause' : '▶️ Replay'}
+            </Text>
+          </View>
+
+          <View style={[styles.gestureBadgeCard, { borderColor: '#00E676' }]}>
+            <Text style={[styles.gestureBadgeTrigger, { color: '#00E676' }]}>
+              HOLD
+            </Text>
+            <Text style={styles.gestureBadgeAction}>🌐 {targetLanguage}</Text>
+          </View>
+        </View>
       </View>
     </Pressable>
   );
 }
-

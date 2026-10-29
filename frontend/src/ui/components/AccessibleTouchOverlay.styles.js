@@ -1,5 +1,5 @@
 /**
- * Dedicated Stylesheet for AccessibleTouchOverlay (MATTHEW'S UI WORKSPACE)
+ * Dedicated Stylesheet for AccessibleTouchOverlay (MATTHEW'S COMPLETED UI DELIVERABLE)
  */
 
 import { StyleSheet } from 'react-native';
@@ -15,35 +15,59 @@ export const styles = StyleSheet.create({
     borderColor: THEME.colors.accentYellow,
     justifyContent: 'space-between',
     paddingHorizontal: THEME.spacing.md,
-    paddingTop: THEME.spacing.xl,
-    paddingBottom: THEME.spacing.lg,
+    paddingTop: THEME.spacing.lg,
+    paddingBottom: THEME.spacing.md,
   },
   fullScreenResponderPressed: {
     borderColor: THEME.colors.accentCyan,
-    backgroundColor: '#09141A',
+    backgroundColor: '#0A161E',
   },
   gestureFooterBar: {
     backgroundColor: THEME.colors.backgroundElevated,
     borderWidth: THEME.borders.thickWidth,
     borderColor: THEME.colors.accentYellow,
     borderRadius: THEME.borders.radiusMd,
-    paddingVertical: THEME.spacing.md,
-    paddingHorizontal: THEME.spacing.md,
-    marginTop: THEME.spacing.sm,
+    paddingVertical: THEME.spacing.sm,
+    paddingHorizontal: THEME.spacing.sm,
+    marginTop: THEME.spacing.xs,
   },
   gestureGuideTitle: {
     color: THEME.colors.accentYellow,
-    fontSize: THEME.typography.badgeSize,
+    fontSize: 15,
     fontWeight: '900',
     letterSpacing: 1,
     textTransform: 'uppercase',
-    marginBottom: THEME.spacing.xs,
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  gestureInstructionText: {
+  gestureGridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  gestureBadgeCard: {
+    flex: 1,
+    backgroundColor: '#1C1C28',
+    borderWidth: 2,
+    borderColor: '#FFD600',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 72,
+  },
+  gestureBadgeTrigger: {
+    color: THEME.colors.accentYellow,
+    fontSize: 15,
+    fontWeight: '900',
+    marginBottom: 3,
+    textAlign: 'center',
+  },
+  gestureBadgeAction: {
     color: THEME.colors.textPrimary,
-    fontSize: THEME.typography.gestureHintSize,
-    fontWeight: '700',
-    lineHeight: 28,
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
   },
 });
-
