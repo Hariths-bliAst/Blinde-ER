@@ -90,29 +90,37 @@ def contextualize_and_translate_text(
     )
 
     try:
-        # Support both standard Google AI Studio keys and Vertex AI Express keys (AQ.*)
-        if api_key.startswith("AQ."):
-            client = genai.Client(vertexai=True, api_key=api_key)
-        else:
-            client = genai.Client(api_key=api_key)
+        # Connect directly to Google AI Studio Free Tier (Generativelanguage API)
+        client = genai.Client(api_key=api_key)
+        candidate_models = [
+            settings.GEMINI_MODEL_NAME,
+            "gemini-3-flash-preview",
+            "gemini-3.1-flash-lite-preview",
+            "gemma-4-26b-a4b-it",
+        ]
+        # Deduplicate while preserving order
+        models_to_try = list(dict.fromkeys(candidate_models))
 
-        response = client.models.generate_content(
-            model=settings.GEMINI_MODEL_NAME,
-            contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=NARRATOR_SYSTEM_PROMPT,
-                temperature=0.4,
-            ),
-        )
-
-        narrated_text = (response.text or "").strip()
-        if narrated_text:
-            return {
-                "narrated_text": narrated_text,
-                "target_language": target_language,
-                "model": settings.GEMINI_MODEL_NAME,
-                "used_live_llm": True,
-            }
+        for model_name in models_to_try:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=user_prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=NARRATOR_SYSTEM_PROMPT,
+                        temperature=0.4,
+                    ),
+                )
+                narrated_text = (response.text or "").strip()
+                if narrated_text:
+                    return {
+                        "narrated_text": narrated_text,
+                        "target_language": target_language,
+                        "model": model_name,
+                        "used_live_llm": True,
+                    }
+            except Exception:
+                continue
     except Exception as exc:
         # Graceful fallback so live competition demos never fail on network/key issues
         return {

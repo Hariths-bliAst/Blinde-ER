@@ -20,7 +20,7 @@ class Settings:
     """Centralized configuration populated exclusively from environment variables."""
 
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL_NAME: str = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+    GEMINI_MODEL_NAME: str = os.getenv("GEMINI_MODEL_NAME", "gemini-3-flash-preview")
     BACKEND_HOST: str = os.getenv("BACKEND_HOST", "0.0.0.0")
     BACKEND_PORT: int = int(os.getenv("BACKEND_PORT", "8000"))
     DEFAULT_TARGET_LANGUAGE: str = os.getenv("DEFAULT_TARGET_LANGUAGE", "English")
