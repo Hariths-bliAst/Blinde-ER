@@ -49,7 +49,7 @@ async def health_check():
     }
 
 
-MOBILE_APP_HTML = """<!DOCTYPE html>
+MOBILE_APP_HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -166,9 +166,24 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
 
     .a11y-touchable:focus-visible,
     .a11y-touchable.focused-touch {
-      outline: 3px solid var(--apple-focus);
-      outline-offset: -3px;
+      outline: 4px solid var(--apple-focus);
+      outline-offset: -4px;
       border-color: var(--apple-focus) !important;
+    }
+
+    .a11y-touchable.focused-touch::after {
+      content: "TAP AGAIN TO OPEN ↵";
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--apple-focus);
+      color: #FFFFFF;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+      pointer-events: none;
     }
 
     .a11y-touchable:active {
@@ -923,7 +938,7 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
         id: 'CROSSWALK',
         title: 'POV SCENE 1/3: URBAN CROSSWALK & TRAFFIC SIGNAL',
         banner: '[HUD TARGET] WALK SIGNAL: 14 SEC • 5TH AVE',
-        desc: 'Pedestrian crossing countdown active. Tactile paving aligned at 12 o\'clock; cyclist stopped on left.'
+        desc: 'Pedestrian crossing countdown active. Tactile paving aligned at 12 o’clock; cyclist stopped on left.'
       },
       {
         id: 'PHARMACY',
@@ -947,6 +962,8 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
     let isSpeakingPassage = false;
     let lastNarratedText = '';
     let audioCtx = null;
+    let focusedElement = null;
+    let singleTapTimer = null;
 
     function playHapticTone(freq = 520, duration = 0.06) {
       try {
@@ -990,6 +1007,8 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
     }
 
     function navigateToScreen(screenId, announcement) {
+      focusedElement = null;
+      document.querySelectorAll('.a11y-touchable').forEach((b) => b.classList.remove('focused-touch'));
       document.querySelectorAll('.app-screen').forEach((s) => s.classList.remove('active'));
       document.getElementById('screen-' + screenId).classList.add('active');
       if (announcement) {
@@ -999,42 +1018,43 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
 
     // =======================================================================
     // STEP 1: AccessibleTouchable Engine (1 Tap = TTS Readout, 2 Taps = Act)
+    // Supports BOTH rapid double-tap AND tapping an already-focused item a 2nd time
     // =======================================================================
     function attachAccessibleTouchableEngine() {
       const elements = document.querySelectorAll('.a11y-touchable');
       elements.forEach((el) => {
-        let lastTap = 0;
-        let singleTapTimer = null;
-
         el.addEventListener('click', (e) => {
           e.stopPropagation();
-          const now = Date.now();
-          const delta = now - lastTap;
-
-          document.querySelectorAll('.a11y-touchable').forEach((b) => b.classList.remove('focused-touch'));
-          el.classList.add('focused-touch');
 
           const label = el.getAttribute('data-label') || el.innerText.trim();
           const hint = el.getAttribute('data-hint') || 'Double tap to select.';
           const action = el.getAttribute('data-action');
 
-          if (delta > 0 && delta < DOUBLE_TAP_MS) {
-            // DOUBLE TAP -> Execute primary action
+          if (focusedElement === el) {
+            // SECOND TAP ON SAME ELEMENT (Fast Double-Tap OR 2nd Tap after hearing TTS) -> Execute Action!
             if (singleTapTimer) {
               clearTimeout(singleTapTimer);
               singleTapTimer = null;
             }
-            lastTap = 0;
+            focusedElement = null;
+            el.classList.remove('focused-touch');
             playHapticTone(840, 0.1);
             executeAccessibleAction(action);
           } else {
-            // ONE TAP -> Do NOT execute action; speak button label & hint via TTS
-            lastTap = now;
+            // FIRST TAP ON ELEMENT -> Focus element & speak button label + hint aloud via TTS
+            if (singleTapTimer) {
+              clearTimeout(singleTapTimer);
+              singleTapTimer = null;
+            }
+            document.querySelectorAll('.a11y-touchable').forEach((b) => b.classList.remove('focused-touch'));
+            focusedElement = el;
+            el.classList.add('focused-touch');
+
             singleTapTimer = setTimeout(() => {
               playHapticTone(440, 0.05);
               speakTTS(label + '. ' + hint);
               singleTapTimer = null;
-            }, DOUBLE_TAP_MS);
+            }, 180);
           }
         });
       });

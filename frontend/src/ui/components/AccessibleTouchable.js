@@ -32,6 +32,9 @@ export function speakAssistivePrompt(text, options = {}) {
   }
 }
 
+let activeFocusedId = null;
+let nextInstanceId = 1;
+
 export default function AccessibleTouchable({
   label,
   ttsHint = 'Double tap to activate.',
@@ -43,23 +46,21 @@ export default function AccessibleTouchable({
   disabled = false,
   accessibilityRole = 'button',
 }) {
-  const lastTapRef = useRef(0);
+  const instanceIdRef = useRef(nextInstanceId++);
   const singleTapTimerRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
 
   const handlePress = useCallback(() => {
     if (disabled) return;
 
-    const now = Date.now();
-    const timeDelta = now - lastTapRef.current;
-
-    if (timeDelta > 0 && timeDelta < DOUBLE_TAP_WINDOW_MS) {
-      // DOUBLE TAP DETECTED -> Clear single-tap readout and execute primary action
+    if (activeFocusedId === instanceIdRef.current) {
+      // SECOND TAP ON FOCUSED ITEM (Rapid Double-Tap OR 2nd Tap after TTS Readout) -> Execute Action
       if (singleTapTimerRef.current) {
         clearTimeout(singleTapTimerRef.current);
         singleTapTimerRef.current = null;
       }
-      lastTapRef.current = 0;
+      activeFocusedId = null;
+      setIsFocused(false);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       if (confirmSpeech) {
@@ -69,15 +70,15 @@ export default function AccessibleTouchable({
         onDoubleTap();
       }
     } else {
-      // FIRST TAP -> Wait briefly to confirm it isn't a double-tap, then read aloud via TTS
-      lastTapRef.current = now;
+      // FIRST TAP -> Focus element & read label + hint aloud via Native TTS
+      activeFocusedId = instanceIdRef.current;
       setIsFocused(true);
 
       singleTapTimerRef.current = setTimeout(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         speakAssistivePrompt(`${label}. ${ttsHint}`);
         singleTapTimerRef.current = null;
-      }, DOUBLE_TAP_WINDOW_MS);
+      }, 180);
     }
   }, [confirmSpeech, disabled, label, onDoubleTap, ttsHint]);
 
@@ -114,3 +115,4 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
 });
+
