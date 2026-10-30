@@ -1,121 +1,119 @@
 /**
  * Blind-ER Screen 2: HomeScreen.js
- * Minimalist, color-blocked Apple-inspired Home Screen:
- *   - Top 60% Hero Element: Massive single "Book Scanner" button.
- *   - Bottom 40% Secondary Grid: 2x2 grid of massive hitboxes ("Meta Glasses",
- *     "Be My Eyes Bridge", "Auditory Games", "Settings").
+ * Minimalist 60% / 40% Layout matching the Reference Design:
+ *   - Top 60% Hero Element: Solid Yellow (#F5C518) "Book Scanner / AI Audiobook"
+ *   - Bottom 40% Secondary 2x2 Grid:
+ *       1. Auditory Games (Pitch, Notes, Chords, Audio Match)
+ *       2. More (Audiobook Library + Extensions: Meta Glasses & Be My Eyes)
+ *       3. Settings (Volume, Tone, Voice, Language, Check for Updates)
+ *       4. Back to Setup (Returns to Visual Impairment Onboarding)
  */
 
 import React, { useEffect } from 'react';
-import { SafeAreaView, View, Text, StyleSheet } from 'react-native';
+import { View, Text, SafeAreaView, StatusBar, StyleSheet } from 'react-native';
 import AccessibleTouchable, {
   speakAssistivePrompt,
 } from '../components/AccessibleTouchable';
 
-export default function HomeScreen({ navigation, route }) {
-  const accessibilityMode = route?.params?.accessibilityMode || 'LOW_VISION';
-
+export default function HomeScreen({ navigation }) {
   useEffect(() => {
     speakAssistivePrompt(
-      'Home Screen. Top sixty percent is Book Scanner. Bottom forty percent contains Meta Smart Glasses, Be My Eyes Extension, Auditory Games, and Settings. Tap once to hear any button, double tap to open.'
+      'Home Screen. Top 60 percent is Book Scanner. Bottom grid has Auditory Games, More Library and Extensions, Settings, and Back to Setup.'
     );
   }, []);
 
+  const navigateWithVoice = (targetScreen, spokenMessage) => {
+    speakAssistivePrompt(spokenMessage);
+    if (navigation?.navigate) {
+      navigation.navigate(targetScreen);
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.screen}>
-      {/* ================================================================= */}
-      {/* TOP 60%: MASSIVE HERO ELEMENT ("Book Scanner")                    */}
-      {/* ================================================================= */}
-      <View style={styles.heroSection}>
-        <AccessibleTouchable
-          label="Book Scanner"
-          ttsHint="Double tap to open camera."
-          confirmSpeech="Opening Book Scanner."
-          onDoubleTap={() =>
-            navigation?.navigate &&
-            navigation.navigate('BookScanner', { accessibilityMode })
-          }
-          style={styles.heroButton}
-        >
-          <Text style={styles.heroEyebrow}>PRIMARY AI TOOL • 60% ZONE</Text>
-          <Text style={styles.heroIcon} accessible={false}>
-            📖
-          </Text>
-          <Text style={styles.heroTitle}>Book Scanner</Text>
-          <Text style={styles.heroSub}>
-            1 Tap: Hear Label • 2 Taps: Open Camera
-          </Text>
-        </AccessibleTouchable>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
-      {/* ================================================================= */}
-      {/* BOTTOM 40%: SPACIOUS 2x2 SECONDARY FEATURE GRID                   */}
-      {/* ================================================================= */}
-      <View style={styles.secondarySection}>
-        <View style={styles.gridRow}>
+      <View style={styles.screenContainer}>
+        {/* Top 60%: Massive Solid Yellow Book Scanner Button */}
+        <View style={styles.heroTop60}>
           <AccessibleTouchable
-            label="Ray-Ban Meta Smart Glasses"
-            ttsHint="Real-time wearable camera monitoring and bone conduction audio. Double tap to connect."
-            confirmSpeech="Opening Ray-Ban Meta Smart Glasses Live Monitor."
+            label="Book Scanner, AI Audiobook"
+            ttsHint="Primary AI tool. Scans physical book pages into expressive audiobooks. Tap again to open camera."
             onDoubleTap={() =>
-              navigation?.navigate &&
-              navigation.navigate('HardwareHub', { initialMode: 'META_GLASSES' })
+              navigateWithVoice('BookScanner', 'Opening Book Scanner.')
             }
-            style={styles.secondaryTile}
+            style={styles.heroScannerButton}
           >
-            <Text style={styles.tileIcon} accessible={false}>
-              🕶️
+            <Text style={styles.heroLabel}>Book Scanner</Text>
+            <Text style={styles.heroLabel}>AI Audiobook</Text>
+            <Text style={styles.heroSubtext}>
+              1st Tap: Hear • 2nd Tap: Open
             </Text>
-            <Text style={styles.tileTitle}>Meta Glasses</Text>
-          </AccessibleTouchable>
-
-          <AccessibleTouchable
-            label="Be My Eyes Extension Bridge"
-            ttsHint="Connect live camera and C R N N telemetry with Be My Eyes visual assistant. Double tap to open."
-            confirmSpeech="Opening Be My Eyes Extension Bridge."
-            onDoubleTap={() =>
-              navigation?.navigate &&
-              navigation.navigate('HardwareHub', { initialMode: 'BE_MY_EYES' })
-            }
-            style={styles.secondaryTile}
-          >
-            <Text style={styles.tileIcon} accessible={false}>
-              🤝
-            </Text>
-            <Text style={styles.tileTitle}>Be My Eyes</Text>
           </AccessibleTouchable>
         </View>
 
-        <View style={styles.gridRow}>
-          <AccessibleTouchable
-            label="Auditory Games"
-            ttsHint="Pitch training and spatial echolocation exercises. Double tap to open."
-            confirmSpeech="Opening Auditory Games."
-            onDoubleTap={() =>
-              speakAssistivePrompt('Auditory Pitch Training Game ready.')
-            }
-            style={styles.secondaryTile}
-          >
-            <Text style={styles.tileIcon} accessible={false}>
-              🎯
-            </Text>
-            <Text style={styles.tileTitle}>Auditory Games</Text>
-          </AccessibleTouchable>
+        {/* Bottom 40%: 2x2 Grid of Secondary Features */}
+        <View style={styles.secondaryBottom40}>
+          <View style={styles.gridRow}>
+            <AccessibleTouchable
+              label="Auditory Games"
+              ttsHint="Play Pitch Training, Note Recognising, Chord Identifying, and Audio Pattern Match. Tap again to open."
+              onDoubleTap={() =>
+                navigateWithVoice('AuditoryGames', 'Opening Auditory Games Suite.')
+              }
+              style={styles.secondaryTile}
+            >
+              <Text style={styles.secondaryTitle}>Auditory</Text>
+              <Text style={styles.secondaryTitle}>Games</Text>
+              <Text style={styles.secondarySub}>Pitch • Chords • Notes</Text>
+            </AccessibleTouchable>
 
-          <AccessibleTouchable
-            label="Accessibility Settings"
-            ttsHint="Return to visual impairment profile setup. Double tap to open."
-            confirmSpeech="Returning to Accessibility Setup."
-            onDoubleTap={() =>
-              navigation?.navigate && navigation.navigate('Onboarding')
-            }
-            style={styles.secondaryTile}
-          >
-            <Text style={styles.tileIcon} accessible={false}>
-              ⚙️
-            </Text>
-            <Text style={styles.tileTitle}>Settings</Text>
-          </AccessibleTouchable>
+            <AccessibleTouchable
+              label="More Hub: Audiobook Library and Extensions"
+              ttsHint="Open your saved Audiobook Library, Ray-Ban Meta Smart Glasses, and Be My Eyes extension. Tap again to open."
+              onDoubleTap={() =>
+                navigateWithVoice(
+                  'MoreHub',
+                  'Opening More Hub: Audiobook Library and Extensions.'
+                )
+              }
+              style={styles.secondaryTile}
+            >
+              <Text style={styles.secondaryTitle}>More</Text>
+              <Text style={styles.secondaryTitle}>Library & Ext</Text>
+              <Text style={styles.secondarySub}>Audiobooks • Glasses</Text>
+            </AccessibleTouchable>
+          </View>
+
+          <View style={styles.gridRow}>
+            <AccessibleTouchable
+              label="Settings"
+              ttsHint="Adjust Volume Control, Tone, Narrator Voice, Language, and Check for Updates. Tap again to open."
+              onDoubleTap={() =>
+                navigateWithVoice('Settings', 'Opening Settings.')
+              }
+              style={styles.secondaryTile}
+            >
+              <Text style={styles.secondaryTitle}>Settings</Text>
+              <Text style={styles.secondarySub}>Volume • Voice • Lang</Text>
+            </AccessibleTouchable>
+
+            <AccessibleTouchable
+              label="Back to Setup"
+              ttsHint="Return to the Welcome visual impairment setup screen. Tap again to open."
+              onDoubleTap={() =>
+                navigateWithVoice(
+                  'Onboarding',
+                  'Returning to Welcome Visual Setup.'
+                )
+              }
+              style={styles.secondaryTile}
+            >
+              <Text style={styles.secondaryTitle}>Back to</Text>
+              <Text style={styles.secondaryTitle}>Setup</Text>
+              <Text style={styles.secondarySub}>Vision Profile</Text>
+            </AccessibleTouchable>
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -123,80 +121,73 @@ export default function HomeScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#000000',
-    padding: 20,
-    gap: 20,
   },
-  heroSection: {
+  screenContainer: {
+    flex: 1,
+    padding: 20,
+    gap: 16,
+  },
+  heroTop60: {
     flex: 6,
     width: '100%',
   },
-  heroButton: {
+  heroScannerButton: {
     flex: 1,
     width: '100%',
-    backgroundColor: '#FFD600',
-    borderRadius: 11,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
+    backgroundColor: '#F5C518',
+    borderRadius: 26,
     padding: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  heroEyebrow: {
-    color: '#1D1D1F',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    marginBottom: 12,
-  },
-  heroIcon: {
-    fontSize: 52,
-    marginBottom: 12,
-  },
-  heroTitle: {
+  heroLabel: {
     color: '#000000',
-    fontSize: 44,
-    fontWeight: '600',
-    letterSpacing: -0.5,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  heroSub: {
-    color: '#1D1D1F',
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 36,
+    fontWeight: '800',
+    lineHeight: 42,
     textAlign: 'center',
   },
-  secondarySection: {
+  heroSubtext: {
+    color: '#1A1A1C',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  secondaryBottom40: {
     flex: 4,
     width: '100%',
-    gap: 16,
+    gap: 14,
   },
   gridRow: {
     flex: 1,
     flexDirection: 'row',
-    gap: 16,
+    gap: 14,
   },
   secondaryTile: {
     flex: 1,
-    backgroundColor: '#1D1D1F',
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: '#F5F5F7',
-    padding: 16,
+    height: '100%',
+    backgroundColor: '#141416',
+    borderWidth: 1.5,
+    borderColor: '#26262A',
+    borderRadius: 22,
+    padding: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  tileIcon: {
-    fontSize: 28,
-    marginBottom: 8,
-  },
-  tileTitle: {
+  secondaryTitle: {
     color: '#FFFFFF',
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '800',
+    lineHeight: 23,
     textAlign: 'center',
+  },
+  secondarySub: {
+    color: '#8E8E93',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
 });

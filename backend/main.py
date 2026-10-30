@@ -1,11 +1,15 @@
 """
 Blind-ER — FastAPI Backend Entrypoint & Live Accessible Mobile App Frontend
-Implements the Apple-inspired Minimalist High-Contrast Voice-First UX:
-  - Step 1: `AccessibleTouchable` (1 Tap = TTS Readout, 2 Taps = Execute Action)
-  - Screen 1: `OnboardingScreen` (Auto-play voice intro + Visual Impairment Profile)
-  - Screen 2: `HomeScreen` (Top 60% Massive "Book Scanner" Hero + Bottom 40% 2x2 Grid)
-  - Screen 3: `BookScannerScreen` via `FeatureLayoutTemplate` (Top 75% Camera & Text +
-    Bottom 25% Fixed 4-to-5 Button Bar: Back | Capture | Read/Stop | Next | More)
+Matches the Apple-Minimalist High-Contrast Voice-First Mockup:
+  - Custom `AccessibleTouchable` Focus-then-Activate Engine (1st Tap = TTS Readout, 2nd Tap = Execute)
+  - Screen 1: `OnboardingScreen` (Matches mockup: "Welcome to Blind-ER", Option A Low Vision WCAG AAA in solid yellow, Option B Fully Blind Audio-First in dark charcoal, "Audio tutorial is playing..." + animated waveform)
+  - Screen 2: `HomeScreen` (Top 60% Book Scanner Hero + Bottom 40% 2x2 Grid: Auditory Games | More Hub | Settings | Visual Setup)
+  - Screen 3: `BookScannerScreen` (Camera Viewfinder + Reader Overlay + 5-Button Bar; saves scans to Audiobook Library)
+  - Screen 4: `MoreHubScreen` (Houses the Audiobook Library + Assistive Extensions: Ray-Ban Meta Smart Glasses & Be My Eyes)
+  - Screen 5: `AudiobookLibraryScreen` (Full multi-book, multi-chapter audiobook player inside More)
+  - Screen 6: `AuditoryGamesScreen` (4 playable Web Audio games: Pitch Training, Note Recognising, Chord Identifying, Audio Memory Match)
+  - Screen 7: `SettingsScreen` (Real working settings: Volume Control, Voice Tone/Speed, Change Voice, Change Language, Check for Updates)
+  - Screen 8: `HardwareHubScreen` (Extension: Ray-Ban Meta Smart Glasses Live HUD & Be My Eyes Bridge)
 """
 
 import uvicorn
@@ -21,7 +25,7 @@ app = FastAPI(
         "Context-Aware Book-to-Audiobook Scanner Pipeline: "
         "Custom CRNN OCR -> Gemini LLM Narrator/Translator -> Mobile TTS"
     ),
-    version="1.0.0",
+    version="2.4.0",
 )
 
 app.add_middleware(
@@ -40,6 +44,7 @@ async def health_check():
     """Health check endpoint verifying backend status without exposing secrets."""
     return {
         "status": "healthy",
+        "version": "2.4.0",
         "service": "Blind-ER FastAPI Middleware",
         "crnn_mode": "mock" if settings.USE_MOCK_CRNN else "custom_weights",
         "gemini_key_configured": bool(
@@ -58,24 +63,25 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
   <style>
     :root {
       color-scheme: dark;
-      --apple-surface: #000000;
-      --apple-primary: #1D1D1F;
-      --apple-raised: #27292C;
-      --apple-canvas: #FFFFFF;
-      --apple-faint: #F5F5F7;
-      --apple-muted: #86868B;
-      --apple-focus: #0071E3;
-      --apple-accent: #6086BD;
-      --high-vis-yellow: #FFD600;
+      --bg-black: #000000;
+      --card-dark: #141416;
+      --card-dark-border: #26262A;
+      --card-elevated: #1C1C1F;
+      --accent-yellow: #F5C518;
+      --accent-yellow-bright: #FFD600;
+      --text-white: #FFFFFF;
+      --text-soft: #D1D1D6;
+      --text-muted: #8E8E93;
+      --focus-blue: #0071E3;
     }
 
     @media (forced-colors: active) {
       :root {
-        --apple-surface: Canvas;
-        --apple-primary: Canvas;
-        --apple-canvas: CanvasText;
-        --high-vis-yellow: Highlight;
-        --apple-focus: LinkText;
+        --bg-black: Canvas;
+        --card-dark: Canvas;
+        --text-white: CanvasText;
+        --accent-yellow: Highlight;
+        --focus-blue: LinkText;
       }
     }
 
@@ -88,61 +94,65 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
     }
 
     body {
-      background: #0C0F12;
-      color: var(--apple-canvas);
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+      background: #050507;
+      color: var(--text-white);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 16px;
+      padding: 14px;
     }
 
-    /* Apple iPhone Frame */
+    /* Sleek iPhone Titanium Bezel matching uploaded reference image */
     .device-shell {
-      width: 412px;
-      height: 868px;
-      background: #000000;
-      border-radius: 48px;
-      padding: 12px;
-      border: 3px solid #333538;
+      width: 404px;
+      height: 860px;
+      background: linear-gradient(145deg, #2A2A2E 0%, #121214 50%, #242428 100%);
+      border-radius: 54px;
+      padding: 11px;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.9), inset 0 0 2px rgba(255, 255, 255, 0.22);
       display: flex;
       flex-direction: column;
+      position: relative;
     }
 
     .device-viewport {
       flex: 1;
-      background: var(--apple-surface);
-      border-radius: 36px;
+      background: var(--bg-black);
+      border-radius: 44px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       position: relative;
-      border: 2px solid #27292C;
+      border: 1px solid #1C1C1E;
     }
 
-    /* Minimal Status Header */
-    .ios-bar {
-      height: 44px;
-      padding: 0 24px;
+    /* Subtle Dynamic Island / Speaker Notch */
+    .notch-bar {
+      height: 32px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--apple-faint);
-      border-bottom: 1px solid #1B1D20;
+      justify-content: center;
       flex-shrink: 0;
+      position: relative;
     }
 
-    .tts-live-pill {
-      background: #1D1D1F;
-      border: 1px solid var(--high-vis-yellow);
-      color: var(--high-vis-yellow);
-      padding: 3px 10px;
-      border-radius: 9999px;
-      font-size: 11px;
-      font-weight: 600;
+    .speaker-slit {
+      width: 58px;
+      height: 5px;
+      background: #1B1B1E;
+      border-radius: 999px;
+    }
+
+    .mode-pill-corner {
+      position: absolute;
+      right: 20px;
+      top: 8px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent-yellow);
+      letter-spacing: 0.4px;
     }
 
     /* Screen Container */
@@ -150,198 +160,157 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
       display: none;
       flex: 1;
       flex-direction: column;
-      background: var(--apple-surface);
+      background: var(--bg-black);
+      overflow: hidden;
     }
 
     .app-screen.active {
       display: flex;
     }
 
-    /* AccessibleTouchable Universal Styling */
+    /* Universal AccessibleTouchable Styling */
     .a11y-touchable {
       cursor: pointer;
-      transition: transform 0.08s ease, border-color 0.12s ease, background-color 0.12s ease;
+      transition: transform 0.1s ease, box-shadow 0.14s ease, border-color 0.14s ease;
       position: relative;
+      border: none;
+      font-family: inherit;
     }
 
     .a11y-touchable:focus-visible,
     .a11y-touchable.focused-touch {
-      outline: 4px solid var(--apple-focus);
+      outline: 4px solid var(--focus-blue);
       outline-offset: -4px;
-      border-color: var(--apple-focus) !important;
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.45);
     }
 
     .a11y-touchable.focused-touch::after {
       content: "TAP AGAIN TO OPEN ↵";
       position: absolute;
-      top: 8px;
-      right: 8px;
-      background: var(--apple-focus);
+      top: 10px;
+      right: 12px;
+      background: var(--focus-blue);
       color: #FFFFFF;
       font-size: 10px;
-      font-weight: 700;
-      padding: 3px 8px;
+      font-weight: 800;
+      padding: 4px 9px;
       border-radius: 999px;
       letter-spacing: 0.5px;
       pointer-events: none;
+      z-index: 5;
     }
 
     .a11y-touchable:active {
-      transform: scale(0.97);
+      transform: scale(0.975);
     }
 
     /* ===================================================================== */
-    /* SCREEN 1: ONBOARDING SCREEN                                           */
+    /* SCREEN 1: ONBOARDING (Matches Reference Mockup Image)                 */
     /* ===================================================================== */
     .onboarding-wrap {
       flex: 1;
-      padding: 24px 20px;
+      padding: 22px 26px 14px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      gap: 20px;
+      align-items: center;
+      text-align: center;
     }
 
-    .onboarding-header {
+    .onboarding-top-text {
+      margin-top: 8px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
     }
 
-    .eyebrow {
-      color: var(--high-vis-yellow);
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
+    .mockup-title {
+      font-size: 27px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-white);
     }
 
-    .display-title {
-      color: var(--apple-canvas);
-      font-size: 32px;
-      font-weight: 600;
-      line-height: 1.15;
-    }
-
-    .body-sub {
-      color: var(--apple-muted);
+    .mockup-subtitle {
       font-size: 16px;
-      font-weight: 400;
-      line-height: 1.35;
+      font-weight: 600;
+      line-height: 1.32;
+      color: var(--text-soft);
+      max-width: 270px;
     }
 
-    .onboarding-options {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .profile-card {
-      flex: 1;
+    .onboarding-cards-stack {
       width: 100%;
-      padding: 24px;
-      border-radius: 11px;
-      border: 3px solid var(--high-vis-yellow);
-      background: var(--apple-primary);
+      flex: 1;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      align-items: flex-start;
-      text-align: left;
+      gap: 22px;
+      padding: 18px 0;
     }
 
-    .profile-card.option-b {
-      background: #1B1D20;
-      border-color: var(--apple-canvas);
-    }
-
-    .profile-card-title {
-      font-size: 30px;
-      font-weight: 600;
-      line-height: 1.18;
-      color: var(--high-vis-yellow);
-      margin: 6px 0 8px;
-    }
-
-    .profile-card.option-b .profile-card-title {
-      color: var(--apple-canvas);
-    }
-
-    .profile-card-desc {
-      font-size: 16px;
-      font-weight: 400;
-      color: var(--apple-faint);
-      line-height: 1.35;
-    }
-
-    /* ===================================================================== */
-    /* SCREEN 2: MINIMALIST HOME SCREEN (60% HERO / 40% 2x2 GRID)            */
-    /* ===================================================================== */
-    .home-wrap {
-      flex: 1;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .home-hero-60 {
-      flex: 6;
+    .mockup-option-card {
       width: 100%;
-      background: var(--high-vis-yellow);
-      color: #000000;
-      border: 3px solid var(--apple-canvas);
-      border-radius: 11px;
-      padding: 24px;
+      flex: 1;
+      max-height: 225px;
+      border-radius: 26px;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       text-align: center;
+      padding: 24px 20px;
     }
 
-    .hero-eyebrow {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      color: #1D1D1F;
-      margin-bottom: 12px;
-    }
-
-    .hero-icon {
-      font-size: 52px;
-      margin-bottom: 12px;
-    }
-
-    .hero-label {
-      font-size: 42px;
-      font-weight: 600;
+    .mockup-option-card.yellow-card {
+      background: var(--accent-yellow);
       color: #000000;
-      line-height: 1.1;
-      margin-bottom: 10px;
     }
 
-    .hero-hint {
-      font-size: 16px;
-      font-weight: 600;
-      color: #1D1D1F;
+    .mockup-option-card.dark-card {
+      background: var(--card-dark);
+      border: 1.5px solid var(--card-dark-border);
+      color: var(--text-white);
     }
 
-    .home-secondary-40 {
-      flex: 4;
-      width: 100%;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
+    .mockup-card-line {
+      font-size: 29px;
+      font-weight: 800;
+      line-height: 1.16;
+      letter-spacing: -0.5px;
+    }
+
+    /* ===================================================================== */
+    /* SCREEN 2: HOME SCREEN (60% HERO / 40% 2x2 GRID)                       */
+    /* ===================================================================== */
+    .home-wrap {
+      flex: 1;
+      padding: 14px 22px 10px;
+      display: flex;
+      flex-direction: column;
       gap: 16px;
     }
 
-    .secondary-tile {
-      background: var(--apple-primary);
-      border: 2px solid var(--apple-faint);
-      border-radius: 11px;
-      padding: 14px;
+    .home-header-mini {
+      text-align: center;
+      padding-bottom: 2px;
+    }
+
+    .home-header-mini h2 {
+      font-size: 21px;
+      font-weight: 800;
+      color: var(--text-white);
+    }
+
+    .home-hero-60 {
+      flex: 5.8;
+      width: 100%;
+      background: var(--accent-yellow);
+      color: #000000;
+      border-radius: 26px;
+      padding: 24px;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -350,112 +319,149 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
       gap: 6px;
     }
 
-    .tile-icon { font-size: 26px; }
-    .tile-label {
-      font-size: 19px;
+    .home-hero-title {
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1.12;
+      letter-spacing: -0.6px;
+      color: #000000;
+    }
+
+    .home-hero-sub {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1A1A1C;
+      margin-top: 4px;
+    }
+
+    .home-secondary-40 {
+      flex: 4.2;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .secondary-pill-card {
+      background: var(--card-dark);
+      border: 1.5px solid var(--card-dark-border);
+      border-radius: 22px;
+      padding: 14px 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      gap: 4px;
+    }
+
+    .secondary-pill-card.accent-border {
+      border-color: rgba(245, 197, 24, 0.5);
+    }
+
+    .pill-title {
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1.15;
+      color: var(--text-white);
+    }
+
+    .pill-sub {
+      font-size: 12px;
       font-weight: 600;
-      color: var(--apple-canvas);
+      color: var(--text-muted);
     }
 
     /* ===================================================================== */
-    /* SCREEN 3: FEATURE LAYOUT TEMPLATE (75% HERO / 25% BOTTOM BAR)         */
+    /* FEATURE TEMPLATE (TOP 75% HERO / BOTTOM 25% 5-BUTTON BAR)             */
     /* ===================================================================== */
     .feature-template-wrap {
       flex: 1;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
 
     .feature-hero-75 {
-      flex: 7.5;
-      padding: 16px;
+      flex: 7.6;
+      padding: 12px 18px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       overflow: hidden;
     }
 
-    .scanner-camera-box {
-      flex: 4.2;
-      background: var(--apple-primary);
-      border: 3px solid var(--high-vis-yellow);
+    .feature-top-card {
+      flex: 4.4;
+      background: var(--card-dark);
+      border: 2px solid var(--accent-yellow);
+      border-radius: 22px;
+      padding: 16px;
       position: relative;
-      overflow: hidden;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 14px;
+      text-align: center;
+      overflow: hidden;
     }
 
-    .book-strip-preview {
-      width: 90%;
-      background: #F5F5F7;
-      color: #1D1D1F;
-      padding: 12px 14px;
-      font-family: Georgia, serif;
-      font-size: 13px;
-      line-height: 1.4;
-      border-left: 4px solid var(--high-vis-yellow);
-    }
-
-    .camera-Meta-row {
-      position: absolute;
-      top: 8px;
-      left: 10px;
-      right: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .upload-pill {
-      background: #000000;
-      color: var(--high-vis-yellow);
-      border: 1.5px solid var(--high-vis-yellow);
-      padding: 4px 10px;
-      border-radius: 9999px;
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .scanner-text-overlay {
-      flex: 5.8;
-      background: var(--apple-primary);
-      border: 3px solid var(--apple-canvas);
-      padding: 18px;
+    .feature-reader-card {
+      flex: 5.6;
+      background: var(--card-dark);
+      border: 1.5px solid var(--card-dark-border);
+      border-radius: 22px;
+      padding: 16px 18px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
 
-    .overlay-top-row {
+    .card-badge-row {
+      width: 100%;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
     }
 
-    .overlay-scroll {
+    .eyebrow-tag {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      color: var(--accent-yellow);
+    }
+
+    .status-chip {
+      background: #242428;
+      color: var(--text-white);
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .reader-scroll {
       flex: 1;
       overflow-y: auto;
     }
 
-    .overlay-reader-text {
-      color: var(--apple-canvas);
-      font-size: 23px;
-      font-weight: 600;
-      line-height: 1.42;
+    .reader-large-copy {
+      font-size: 21px;
+      font-weight: 700;
+      line-height: 1.38;
+      color: var(--text-white);
       user-select: text;
     }
 
-    /* Fixed 25% Bottom Control Bar (4 to 5 Massive Flexbox Buttons) */
+    /* Bottom 25% Fixed Control Bar */
     .feature-bottom-bar-25 {
-      flex: 2.5;
+      flex: 2.4;
       background: #000000;
-      border-top: 3px solid var(--high-vis-yellow);
-      padding: 10px 8px;
+      padding: 8px 12px 6px;
       display: flex;
       flex-direction: row;
       gap: 8px;
@@ -464,75 +470,169 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
     .bar-btn {
       flex: 1;
       height: 100%;
-      border-radius: 8px;
-      border: 3px solid var(--apple-canvas);
-      background: var(--apple-primary);
+      border-radius: 18px;
+      background: var(--card-dark);
+      border: 1.5px solid var(--card-dark-border);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 6px 4px;
+      padding: 6px 2px;
       text-align: center;
-      gap: 6px;
+      gap: 5px;
     }
 
-    .bar-btn.capture-primary {
-      background: var(--high-vis-yellow);
-      border-color: var(--apple-canvas);
+    .bar-btn.yellow-primary {
+      background: var(--accent-yellow);
+      border-color: var(--accent-yellow);
       color: #000000;
     }
 
-    .bar-btn.read-secondary {
-      background: var(--apple-primary);
-      border-color: var(--high-vis-yellow);
-    }
-
-    .bar-btn.more-overflow {
-      background: #1B1D20;
-      border-color: var(--apple-accent);
+    .bar-btn.yellow-primary .bar-icon,
+    .bar-btn.yellow-primary .bar-label {
+      color: #000000;
     }
 
     .bar-icon {
-      font-size: 26px;
-      font-weight: 600;
+      font-size: 22px;
+      font-weight: 800;
       line-height: 1;
+      color: var(--text-white);
     }
 
     .bar-label {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--apple-canvas);
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text-white);
+      line-height: 1.1;
     }
 
-    .bar-btn.capture-primary .bar-icon,
-    .bar-btn.capture-primary .bar-label {
+    /* Settings & More Stack Cards */
+    .stack-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+    }
+
+    .setting-row-card {
+      flex: 1;
+      min-height: 68px;
+      background: var(--card-dark);
+      border: 1.5px solid var(--card-dark-border);
+      border-radius: 20px;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-align: left;
+    }
+
+    .setting-row-card.yellow-row {
+      background: var(--accent-yellow);
+      border-color: var(--accent-yellow);
       color: #000000;
     }
 
-    .bar-btn.read-secondary .bar-label,
-    .bar-btn.more-overflow .bar-label {
-      color: var(--high-vis-yellow);
+    .setting-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
 
-    /* Spoken Subtitle Banner */
-    .tts-caption-bar {
-      background: #1D1D1F;
-      border-top: 1px solid #333538;
-      padding: 8px 16px;
+    .setting-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-white);
+    }
+
+    .setting-row-card.yellow-row .setting-title,
+    .setting-row-card.yellow-row .setting-sub,
+    .setting-row-card.yellow-row .setting-val {
+      color: #000000;
+    }
+
+    .setting-sub {
       font-size: 12px;
-      color: var(--high-vis-yellow);
       font-weight: 600;
-      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .setting-val {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--accent-yellow);
+      text-align: right;
+    }
+
+    /* ===================================================================== */
+    /* AUDIO TUTORIAL FOOTER & WAVEFORM VISUALIZER (From Mockup)             */
+    /* ===================================================================== */
+    .audio-footer {
+      padding: 8px 20px 14px;
+      background: var(--bg-black);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
       flex-shrink: 0;
-      min-height: 34px;
+    }
+
+    .audio-status-text {
+      font-size: 15px;
+      font-weight: 700;
+      font-style: italic;
+      color: var(--text-white);
+      text-align: center;
+      min-height: 20px;
+      max-width: 340px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .waveform-bars {
+      height: 22px;
       display: flex;
       align-items: center;
       justify-content: center;
+      gap: 3px;
+      width: 82%;
+    }
+
+    .wave-bar {
+      width: 2px;
+      height: 4px;
+      background: #55555A;
+      border-radius: 999px;
+      transition: height 0.12s ease, background-color 0.12s ease;
+    }
+
+    .waveform-bars.speaking .wave-bar {
+      background: #A0A0A8;
+      animation: wavePulse 0.75s infinite ease-in-out alternate;
+    }
+
+    @keyframes wavePulse {
+      0% { height: 4px; opacity: 0.45; }
+      100% { height: 20px; opacity: 0.95; }
+    }
+
+    .upload-pill-btn {
+      background: #000000;
+      color: var(--accent-yellow);
+      border: 1.5px solid var(--accent-yellow);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
     }
 
     @media (max-width: 480px) {
       body { padding: 0; }
-      .device-shell { width: 100vw; height: 100vh; border-radius: 0; padding: 0; border: none; }
+      .device-shell { width: 100vw; height: 100vh; border-radius: 0; padding: 0; }
       .device-viewport { border-radius: 0; border: none; }
     }
   </style>
@@ -542,144 +642,526 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
   <main class="device-shell" aria-label="Blind-ER Assistive Mobile App">
     <div class="device-viewport">
 
-      <!-- Top Status Bar -->
-      <div class="ios-bar">
-        <span>9:41</span>
-        <span class="tts-live-pill" id="a11yModeBadge">1-Tap: Read • 2-Tap: Select</span>
-        <span>5G 100%</span>
+      <!-- Top Speaker Slit & Mode Indicator -->
+      <div class="notch-bar">
+        <div class="speaker-slit"></div>
+        <span class="mode-pill-corner" id="a11yModeBadge">VOICE-FIRST</span>
       </div>
 
       <!-- ================================================================= -->
-      <!-- SCREEN 1: AUDIO ONBOARDING & SETUP (OnboardingScreen.js)          -->
+      <!-- SCREEN 1: ONBOARDING (Matches Uploaded Mockup Image)              -->
       <!-- ================================================================= -->
-      <section class="app-screen active" id="screen-onboarding" aria-label="Audio Onboarding Screen">
+      <section class="app-screen active" id="screen-onboarding" aria-label="Welcome to Blind-ER Onboarding">
         <div class="onboarding-wrap">
-          <div class="onboarding-header" onclick="playOnboardingIntro()" style="cursor:pointer">
-            <span class="eyebrow">BLIND-ER • VOICE-FIRST SETUP (TAP TO HEAR INTRO)</span>
-            <h1 class="display-title">Select your visual experience level.</h1>
-            <p class="body-sub">
-              Tap any item once to hear what it is. Double-tap to select it.
+          <div class="onboarding-top-text" onclick="playOnboardingIntro()">
+            <h1 class="mockup-title">Welcome to Blind-ER</h1>
+            <p class="mockup-subtitle">
+              Let’s set up your experience.<br/>
+              This tutorial will guide you.
             </p>
           </div>
 
-          <div class="onboarding-options">
-            <!-- Option A -->
+          <div class="onboarding-cards-stack">
+            <!-- Option A: Solid Yellow Card -->
             <button
               type="button"
-              class="profile-card a11y-touchable"
-              data-label="Option A: Partially Blind or Low Vision"
-              data-hint="Sets interface to high contrast yellow on black with large text. Double tap to select."
+              class="mockup-option-card yellow-card a11y-touchable"
+              data-label="Option A: Low Vision, W C A G Triple A"
+              data-hint="High contrast yellow on black with oversized text. Tap again to select."
               data-action="select-low-vision"
             >
-              <span class="eyebrow">OPTION A • HIGH CONTRAST</span>
-              <div class="profile-card-title">Partially Blind /<br/>Low Vision</div>
-              <p class="profile-card-desc">
-                High-contrast color blocking &amp; oversized SF Pro typography
-              </p>
+              <span class="mockup-card-line">Option A</span>
+              <span class="mockup-card-line">Low Vision</span>
+              <span class="mockup-card-line">WCAG AAA</span>
             </button>
 
-            <!-- Option B -->
+            <!-- Option B: Matte Dark Card -->
             <button
               type="button"
-              class="profile-card option-b a11y-touchable"
-              data-label="Option B: Fully Blind"
-              data-hint="Relies entirely on audio feedback and maximizes edge to edge touch targets. Double tap to select."
+              class="mockup-option-card dark-card a11y-touchable"
+              data-label="Option B: Fully Blind, Audio-First"
+              data-hint="Complete voice guidance and maximum touch targets. Tap again to select."
               data-action="select-fully-blind"
             >
-              <span class="eyebrow" style="color:#6086BD">OPTION B • AUDIO-FIRST</span>
-              <div class="profile-card-title">Fully Blind</div>
-              <p class="profile-card-desc">
-                Complete voice guidance &amp; maximum full-width touch zones
-              </p>
+              <span class="mockup-card-line">Option B</span>
+              <span class="mockup-card-line">Fully Blind</span>
+              <span class="mockup-card-line">Audio-First</span>
             </button>
           </div>
         </div>
       </section>
 
       <!-- ================================================================= -->
-      <!-- SCREEN 2: MINIMALIST HOME SCREEN (HomeScreen.js)                  -->
+      <!-- SCREEN 2: HOME SCREEN (Top 60% Book Scanner / Bottom 40% Grid)    -->
       <!-- ================================================================= -->
-      <section class="app-screen" id="screen-home" aria-label="Minimalist Home Screen">
+      <section class="app-screen" id="screen-home" aria-label="Blind-ER Home Screen">
         <div class="home-wrap">
-          <!-- Top 60% Hero Element: Massive "Book Scanner" Button -->
+          <div class="home-header-mini">
+            <h2>Blind-ER Home</h2>
+          </div>
+
+          <!-- Top 60% Hero Element: Book Scanner -->
           <button
             type="button"
             class="home-hero-60 a11y-touchable"
             data-label="Book Scanner"
-            data-hint="Double tap to open camera."
+            data-hint="Primary AI tool. Scans physical book pages into expressive audiobooks. Tap again to open camera."
             data-action="nav-scanner"
           >
-            <span class="hero-eyebrow">PRIMARY AI TOOL • TOP 60%</span>
-            <span class="hero-icon" aria-hidden="true">📖</span>
-            <span class="hero-label">Book Scanner</span>
-            <span class="hero-hint">1 Tap: Hear Label • 2 Taps: Open Camera</span>
+            <span class="home-hero-title">Book Scanner</span>
+            <span class="home-hero-title">AI Audiobook</span>
+            <span class="home-hero-sub">1st Tap: Hear • 2nd Tap: Open</span>
           </button>
 
-          <!-- Bottom 40% Secondary Elements: 2x2 Grid of Massive Hitboxes -->
+          <!-- Bottom 40% Secondary Grid: Games | More (Library & Extensions) | Real Settings | Back to Setup -->
           <div class="home-secondary-40">
             <button
               type="button"
-              class="secondary-tile a11y-touchable"
-              style="border-color: var(--high-vis-yellow);"
-              data-label="Meta Smart Glasses"
-              data-hint="Ray-Ban Meta Smart Glasses live P O V monitoring. Double tap to connect."
-              data-action="nav-hardware-meta"
-            >
-              <span class="tile-icon" aria-hidden="true">🕶️</span>
-              <span class="tile-label" style="color: var(--high-vis-yellow);">Meta Glasses</span>
-            </button>
-
-            <button
-              type="button"
-              class="secondary-tile a11y-touchable"
-              style="border-color: #6086BD;"
-              data-label="Be My Eyes Extension"
-              data-hint="Connect to Be My Eyes volunteer and AI visual bridge. Double tap to open."
-              data-action="nav-hardware-bemyeyes"
-            >
-              <span class="tile-icon" aria-hidden="true">🤝</span>
-              <span class="tile-label">Be My Eyes</span>
-            </button>
-
-            <button
-              type="button"
-              class="secondary-tile a11y-touchable"
+              class="secondary-pill-card accent-border a11y-touchable"
               data-label="Auditory Games"
-              data-hint="Audio pitch training game. Double tap to play a pitch challenge."
-              data-action="play-pitch-demo"
+              data-hint="Play Pitch Training, Note Recognising, Chord Identifying, and Audio Memory Match. Tap again to open."
+              data-action="nav-games"
             >
-              <span class="tile-icon" aria-hidden="true">🎯</span>
-              <span class="tile-label">Auditory Games</span>
+              <span class="pill-title">Auditory</span>
+              <span class="pill-title">Games</span>
+              <span class="pill-sub">Pitch • Chords • Notes</span>
             </button>
 
             <button
               type="button"
-              class="secondary-tile a11y-touchable"
+              class="secondary-pill-card accent-border a11y-touchable"
+              data-label="More Hub: Audiobook Library and Extensions"
+              data-hint="Open your saved Audiobook Library, Ray-Ban Meta Smart Glasses, and Be My Eyes extension. Tap again to open."
+              data-action="nav-more"
+            >
+              <span class="pill-title">More</span>
+              <span class="pill-title">Library &amp; Ext</span>
+              <span class="pill-sub">Audiobooks • Glasses</span>
+            </button>
+
+            <button
+              type="button"
+              class="secondary-pill-card a11y-touchable"
               data-label="Settings"
-              data-hint="Double tap to return to visual impairment onboarding setup."
+              data-hint="Configure Volume, Voice Tone, Speech Voice, Language, and Check for Updates. Tap again to open."
+              data-action="nav-settings"
+            >
+              <span class="pill-title">Settings</span>
+              <span class="pill-sub">Volume • Voice • Lang</span>
+            </button>
+
+            <button
+              type="button"
+              class="secondary-pill-card a11y-touchable"
+              data-label="Back to Setup"
+              data-hint="Return to the Welcome visual impairment setup screen. Tap again to open."
               data-action="nav-onboarding"
             >
-              <span class="tile-icon" aria-hidden="true">⚙️</span>
-              <span class="tile-label">Settings</span>
+              <span class="pill-title">Back to</span>
+              <span class="pill-title">Setup</span>
+              <span class="pill-sub">Vision Profile</span>
             </button>
           </div>
         </div>
       </section>
 
       <!-- ================================================================= -->
-      <!-- SCREEN 4: HARDWARE & EXTENSION HUB (HardwareHubScreen.js)         -->
+      <!-- SCREEN 3: BOOK SCANNER SCREEN (Saves to Audiobook Library)        -->
       <!-- ================================================================= -->
-      <section class="app-screen" id="screen-hardware" aria-label="Ray-Ban Meta Smart Glasses and Be My Eyes Hub">
+      <section class="app-screen" id="screen-scanner" aria-label="Book to Audio Scanner">
         <div class="feature-template-wrap">
-
-          <!-- TOP / MIDDLE AREA (75% HERO CONTENT) -->
           <div class="feature-hero-75">
-            <!-- Ray-Ban Meta Smart Glasses Live POV HUD -->
             <div
-              class="scanner-camera-box a11y-touchable"
-              id="hwHudBox"
-              data-label="Ray-Ban Meta Smart Glasses Live Point of View Feed"
-              data-hint="Double tap to trigger real-time scene monitoring."
+              class="feature-top-card a11y-touchable"
+              data-label="Book Camera Viewfinder"
+              data-hint="Point camera at book page. Tap again to capture and narrate."
+              data-action="scanner-capture"
+            >
+              <div class="card-badge-row" onclick="event.stopPropagation()">
+                <span class="eyebrow-tag" id="crnnBadgeText">CRNN 99.6% • DOCUMENT LENS</span>
+                <label class="upload-pill-btn">
+                  Upload Page
+                  <input type="file" accept="image/*" style="display:none" onchange="handleFileUpload(event)" />
+                </label>
+              </div>
+              <div id="bookPreviewBox" style="font-size:15px; font-weight:700; color:#FFFFFF; line-height:1.35; padding:6px;">
+                CHAPTER IV: THE SILENT LIGHTHOUSE (p. 42)<br/>
+                <span style="color:#D1D1D6; font-weight:500;">
+                  "The wind howled ac- ross the jagged cliffs of Northum- berland, car- rying with it the bitter scent of salt..."
+                </span>
+              </div>
+            </div>
+
+            <div class="feature-reader-card">
+              <div class="card-badge-row">
+                <span class="eyebrow-tag" id="scannerLangBadge">AUDIOBOOK OUTPUT (ENGLISH)</span>
+                <span class="status-chip" id="scannerStatePill">READY</span>
+              </div>
+              <div class="reader-scroll">
+                <p class="reader-large-copy" id="scannerOutputText">
+                  Double-tap "Capture" below to scan with Custom CRNN and narrate with Gemini 3 Flash. Every scanned page is automatically saved to your Audiobook Library inside More.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="feature-bottom-bar-25" role="menubar" aria-label="Book Scanner Controls">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back" data-hint="Return to Home Screen." data-action="nav-home">
+              <span class="bar-icon">←</span>
+              <span class="bar-label">Back</span>
+            </button>
+            <button type="button" class="bar-btn yellow-primary a11y-touchable" data-label="Capture Page" data-hint="Scan page with CRNN and Gemini AI." data-action="scanner-capture">
+              <span class="bar-icon">◎</span>
+              <span class="bar-label">Capture</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" id="readStopBtn" data-label="Read or Stop" data-hint="Start or stop reading the scanned passage." data-action="scanner-read-stop">
+              <span class="bar-icon" id="readStopIcon">🔊</span>
+              <span class="bar-label" id="readStopLabel">Read</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Next Page" data-hint="Load and scan the next book page." data-action="scanner-next">
+              <span class="bar-icon">→</span>
+              <span class="bar-label">Next</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="More Options" data-hint="Open Audiobook Library and Extensions Hub." data-action="nav-more">
+              <span class="bar-icon">•••</span>
+              <span class="bar-label">More</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SCREEN 4: MORE HUB (Audiobook Library + Hardware/App Extensions)  -->
+      <!-- ================================================================= -->
+      <section class="app-screen" id="screen-more" aria-label="More Hub: Audiobook Library and Extensions">
+        <div class="feature-template-wrap">
+          <div class="feature-hero-75">
+            <div class="card-badge-row">
+              <span class="eyebrow-tag">MORE • LIBRARY &amp; ASSISTIVE EXTENSIONS</span>
+              <span class="status-chip" id="libraryCountChip">4 BOOKS SAVED</span>
+            </div>
+
+            <div class="stack-list">
+              <!-- Hero Card inside More: Audiobook Library -->
+              <button
+                type="button"
+                class="setting-row-card yellow-row a11y-touchable"
+                style="flex: 1.4;"
+                data-label="Audiobook Library"
+                data-hint="Browse and listen to your saved books and scanned chapters. Tap again to open Audiobook Library."
+                data-action="nav-library"
+              >
+                <div class="setting-left">
+                  <span class="setting-title" style="font-size:24px;">📚 Audiobook Library</span>
+                  <span class="setting-sub" style="font-size:14px;">Saved Books, Chapters &amp; Scanned Pages</span>
+                </div>
+                <span class="setting-val" style="font-size:18px;">OPEN →</span>
+              </button>
+
+              <!-- Extension 1: Ray-Ban Meta Smart Glasses -->
+              <button
+                type="button"
+                class="setting-row-card a11y-touchable"
+                data-label="Extension: Ray-Ban Meta Smart Glasses"
+                data-hint="Hands-free real-time P O V monitoring via Bluetooth smart glasses. Tap again to connect."
+                data-action="nav-hardware-meta"
+              >
+                <div class="setting-left">
+                  <span class="setting-title">🕶️ Meta Smart Glasses</span>
+                  <span class="setting-sub">Wearable Extension • Real-Time POV HUD</span>
+                </div>
+                <span class="setting-val">BLE 94%</span>
+              </button>
+
+              <!-- Extension 2: Be My Eyes Bridge -->
+              <button
+                type="button"
+                class="setting-row-card a11y-touchable"
+                data-label="Extension: Be My Eyes App Bridge"
+                data-hint="Connect live volunteer and AI visual interpreter with C R N N text telemetry. Tap again to open."
+                data-action="nav-hardware-bemyeyes"
+              >
+                <div class="setting-left">
+                  <span class="setting-title">🤝 Be My Eyes Bridge</span>
+                  <span class="setting-sub">App Extension • Volunteer + AI Escalation</span>
+                </div>
+                <span class="setting-val">READY</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="feature-bottom-bar-25" role="menubar" aria-label="More Hub Controls">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back to Home" data-hint="Return to Home Screen." data-action="nav-home">
+              <span class="bar-icon">←</span>
+              <span class="bar-label">Back</span>
+            </button>
+            <button type="button" class="bar-btn yellow-primary a11y-touchable" data-label="Open Audiobook Library" data-hint="Open your saved audiobooks." data-action="nav-library">
+              <span class="bar-icon">📚</span>
+              <span class="bar-label">Library</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Meta Glasses Extension" data-hint="Open Ray-Ban Meta Smart Glasses live monitor." data-action="nav-hardware-meta">
+              <span class="bar-icon">🕶️</span>
+              <span class="bar-label">Glasses</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Be My Eyes Extension" data-hint="Open Be My Eyes volunteer bridge." data-action="nav-hardware-bemyeyes">
+              <span class="bar-icon">🤝</span>
+              <span class="bar-label">BeMyEyes</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SCREEN 5: AUDIOBOOK LIBRARY (Inside More)                         -->
+      <!-- ================================================================= -->
+      <section class="app-screen" id="screen-library" aria-label="Audiobook Library">
+        <div class="feature-template-wrap">
+          <div class="feature-hero-75">
+            <div
+              class="feature-top-card a11y-touchable"
+              data-label="Current Audiobook Selection"
+              data-hint="Tap again to play or pause this audiobook chapter."
+              data-action="lib-play-pause"
+            >
+              <div class="card-badge-row">
+                <span class="eyebrow-tag" id="libIndexBadge">BOOK 1 OF 4 • SAVED LIBRARY</span>
+                <span class="status-chip" id="libStatusChip">PAUSED</span>
+              </div>
+              <div style="font-size:23px; font-weight:800; color:var(--accent-yellow); line-height:1.2; margin-bottom:6px;" id="libBookTitle">
+                The Silent Lighthouse
+              </div>
+              <div style="font-size:14px; font-weight:700; color:#D1D1D6;" id="libChapterSub">
+                Chapter IV • Scanned via CRNN (99.62%)
+              </div>
+            </div>
+
+            <div class="feature-reader-card">
+              <div class="card-badge-row">
+                <span class="eyebrow-tag" id="libLangBadge">NARRATION LANGUAGE: ENGLISH</span>
+                <span class="status-chip" id="libBookmarkChip">★ BOOKMARKED</span>
+              </div>
+              <div class="reader-scroll">
+                <p class="reader-large-copy" id="libChapterText">
+                  Chapter Four: The Silent Lighthouse. The wind howled across the jagged cliffs of Northumberland, carrying with it the bitter scent of salt and an approaching storm.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="feature-bottom-bar-25" role="menubar" aria-label="Audiobook Library Controls">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back to More" data-hint="Return to the More Hub." data-action="nav-more">
+              <span class="bar-icon">←</span>
+              <span class="bar-label">Back</span>
+            </button>
+            <button type="button" class="bar-btn yellow-primary a11y-touchable" id="libPlayBtn" data-label="Play Audiobook" data-hint="Play or pause the selected audiobook chapter." data-action="lib-play-pause">
+              <span class="bar-icon" id="libPlayIcon">▶</span>
+              <span class="bar-label" id="libPlayLabel">Play</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Previous Book" data-hint="Switch to the previous book in your library." data-action="lib-prev-book">
+              <span class="bar-icon">⏮</span>
+              <span class="bar-label">Prev</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Next Book" data-hint="Switch to the next book in your library." data-action="lib-next-book">
+              <span class="bar-icon">⏭</span>
+              <span class="bar-label">Next</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Translate Audiobook" data-hint="Cycle audiobook translation language." data-action="lib-cycle-lang">
+              <span class="bar-icon">🌐</span>
+              <span class="bar-label">Lang</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SCREEN 6: AUDITORY GAMES SUITE (Pitch, Notes, Chords, Matching)   -->
+      <!-- ================================================================= -->
+      <section class="app-screen" id="screen-games" aria-label="Auditory Games Suite">
+        <div class="feature-template-wrap">
+          <div class="feature-hero-75">
+            <div
+              class="feature-top-card a11y-touchable"
+              data-label="Play Current Game Sound Challenge"
+              data-hint="Tap again to hear the tones, note, chord, or pattern for this round."
+              data-action="game-play-sound"
+            >
+              <div class="card-badge-row">
+                <span class="eyebrow-tag" id="gameModeBadge">GAME 1/4 • PITCH TRAINING</span>
+                <span class="status-chip" id="gameScoreChip">SCORE: 0 • STREAK: 0</span>
+              </div>
+              <div style="font-size:25px; font-weight:800; color:var(--accent-yellow); margin:6px 0;" id="gameTitleText">
+                Pitch Training
+              </div>
+              <div style="font-size:15px; font-weight:600; color:#FFFFFF;" id="gameSubPrompt">
+                Tap "Hear Sound" to play two tones, then select whether the 2nd tone is Higher or Lower.
+              </div>
+            </div>
+
+            <div class="feature-reader-card">
+              <div class="card-badge-row">
+                <span class="eyebrow-tag">SELECTED ANSWER CHOICE</span>
+                <span class="status-chip" id="gameChoiceChip">CHOICE 1</span>
+              </div>
+              <div class="reader-scroll" style="display:flex; flex-direction:column; justify-content:center; gap:8px;">
+                <p class="reader-large-copy" id="gameFeedbackText" style="font-size:22px; color:var(--accent-yellow);">
+                  Current Choice: Higher Pitch
+                </p>
+                <p style="font-size:15px; color:#D1D1D6; font-weight:600;" id="gameHintText">
+                  Use "Choice" in the bottom bar to cycle options, then "Submit" to check your ear!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="feature-bottom-bar-25" role="menubar" aria-label="Auditory Games Controls">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back to Home" data-hint="Return to Home Screen." data-action="nav-home">
+              <span class="bar-icon">←</span>
+              <span class="bar-label">Back</span>
+            </button>
+            <button type="button" class="bar-btn yellow-primary a11y-touchable" data-label="Hear Sound" data-hint="Play the acoustic tone, note, chord, or memory sequence." data-action="game-play-sound">
+              <span class="bar-icon">🎵</span>
+              <span class="bar-label">Hear</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Cycle Answer Choice" data-hint="Cycle through possible answers for this game." data-action="game-cycle-choice">
+              <span class="bar-icon">⇄</span>
+              <span class="bar-label">Choice</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Submit Answer" data-hint="Check if your selected answer matches the sound." data-action="game-submit-answer">
+              <span class="bar-icon">✓</span>
+              <span class="bar-label">Submit</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Switch Game Mode" data-hint="Switch between Pitch Training, Note Recognising, Chord Identifying, and Audio Memory Match." data-action="game-next-mode">
+              <span class="bar-icon">🎮</span>
+              <span class="bar-label">Game</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SCREEN 7: REAL FUNCTIONAL SETTINGS SCREEN                         -->
+      <!-- ================================================================= -->
+      <section class="app-screen" id="screen-settings" aria-label="Blind-ER Settings">
+        <div class="feature-template-wrap">
+          <div class="feature-hero-75">
+            <div class="card-badge-row">
+              <span class="eyebrow-tag">SYSTEM SETTINGS • VOICE &amp; AUDIO</span>
+              <span class="status-chip" id="settingsVersionChip">v2.4.0</span>
+            </div>
+
+            <div class="stack-list">
+              <!-- 1. Volume Control -->
+              <button
+                type="button"
+                class="setting-row-card a11y-touchable"
+                data-label="Volume Control"
+                data-hint="Adjust speech and audio volume between 25, 50, 75, and 100 percent. Tap again to change."
+                data-action="setting-volume"
+              >
+                <div class="setting-left">
+                  <span class="setting-title">🔊 Volume Control</span>
+                  <span class="setting-sub">Master TTS &amp; Haptic Output Level</span>
+                </div>
+                <span class="setting-val" id="valVolume">100%</span>
+              </button>
+
+              <!-- 2. Voice Tone & Speed -->
+              <button
+                type="button"
+                class="setting-row-card a11y-touchable"
+                data-label="Tone and Speech Pacing"
+                data-hint="Cycle between Natural, Warm Literary, Crisp Fast, and Deep Calm tone presets. Tap again to change."
+                data-action="setting-tone"
+              >
+                <div class="setting-left">
+                  <span class="setting-title">🎚️ Tone &amp; Pacing</span>
+                  <span class="setting-sub">Pitch Frequency &amp; Reading Speed</span>
+                </div>
+                <span class="setting-val" id="valTone">Natural (1.0x)</span>
+              </button>
+
+              <!-- 3. Change Voice -->
+              <button
+                type="button"
+                class="setting-row-card a11y-touchable"
+                data-label="Change Narrator Voice"
+                data-hint="Switch between available neural and system speech synthesis voices. Tap again to switch voice."
+                data-action="setting-voice"
+              >
+                <div class="setting-left">
+                  <span class="setting-title">🗣️ Change Voice</span>
+                  <span class="setting-sub">Active System TTS Narrator</span>
+                </div>
+                <span class="setting-val" id="valVoice">Default Voice</span>
+              </button>
+
+              <!-- 4. Change Language -->
+              <button
+                type="button"
+                class="setting-row-card a11y-touchable"
+                data-label="Change App and AI Language"
+                data-hint="Switch primary translation and speech language between English, Malay, Spanish, French, and Mandarin. Tap again to change."
+                data-action="setting-language"
+              >
+                <div class="setting-left">
+                  <span class="setting-title">🌐 Change Language</span>
+                  <span class="setting-sub">Gemini 3 Translation &amp; TTS Locale</span>
+                </div>
+                <span class="setting-val" id="valLanguage">English</span>
+              </button>
+
+              <!-- 5. Check for Updates -->
+              <button
+                type="button"
+                class="setting-row-card yellow-row a11y-touchable"
+                data-label="Check for Updates"
+                data-hint="Verify backend connection, C R N N model weights, and Gemini 3 Flash status. Tap again to check now."
+                data-action="setting-update"
+              >
+                <div class="setting-left">
+                  <span class="setting-title">🔄 Check for Updates</span>
+                  <span class="setting-sub" id="subUpdateStatus">CRNN 99.62% + Gemini 3 Flash</span>
+                </div>
+                <span class="setting-val" id="valUpdate">UP TO DATE</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="feature-bottom-bar-25" role="menubar" aria-label="Settings Bottom Bar">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back to Home" data-hint="Return to Home Screen." data-action="nav-home">
+              <span class="bar-icon">←</span>
+              <span class="bar-label">Back</span>
+            </button>
+            <button type="button" class="bar-btn yellow-primary a11y-touchable" data-label="Adjust Volume" data-hint="Cycle master volume level." data-action="setting-volume">
+              <span class="bar-icon">🔊</span>
+              <span class="bar-label">Volume</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Adjust Tone" data-hint="Cycle voice tone and speed." data-action="setting-tone">
+              <span class="bar-icon">🎚️</span>
+              <span class="bar-label">Tone</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Switch Language" data-hint="Cycle language." data-action="setting-language">
+              <span class="bar-icon">🌐</span>
+              <span class="bar-label">Lang</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back to Visual Setup" data-hint="Open Welcome Visual Impairment Setup." data-action="nav-onboarding">
+              <span class="bar-icon">⚙️</span>
+              <span class="bar-label">Setup</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SCREEN 8: EXTENSIONS — META SMART GLASSES & BE MY EYES            -->
+      <!-- ================================================================= -->
+      <section class="app-screen" id="screen-hardware" aria-label="Assistive Extensions: Meta Glasses and Be My Eyes">
+        <div class="feature-template-wrap">
+          <div class="feature-hero-75">
+            <div
+              class="feature-top-card a11y-touchable"
+              data-label="Ray-Ban Meta Smart Glasses Point of View Feed"
+              data-hint="Tap again to run live spatial monitoring."
               data-action="hw-meta-live"
             >
               <video
@@ -689,228 +1171,100 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
                 muted
                 style="display:none; position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0.55;"
               ></video>
-
-              <div class="camera-meta-row" onclick="event.stopPropagation()" style="z-index:2;">
-                <span class="eyebrow" id="hwDeviceBanner">🕶️ META GLASSES • BLE 94% • 12ms</span>
-                <button type="button" class="upload-pill" onclick="toggleHardwareWebcam(event)" id="hwCamToggleBtn">
+              <div class="card-badge-row" onclick="event.stopPropagation()" style="z-index:2;">
+                <span class="eyebrow-tag" id="hwDeviceBanner">🕶️ EXTENSION • META GLASSES BLE 94%</span>
+                <button type="button" class="upload-pill-btn" onclick="toggleHardwareWebcam(event)" id="hwCamToggleBtn">
                   📷 Live POV Cam
                 </button>
               </div>
-
-              <div class="book-strip-preview" id="hwSceneBox" style="z-index:2; background:#0C0F12; color:#FFFFFF; border:2px solid var(--high-vis-yellow);">
-                <div style="font-family:-apple-system,sans-serif; font-size:11px; font-weight:700; color:var(--high-vis-yellow); margin-bottom:4px;" id="hwSceneTitle">
+              <div style="z-index:2; text-align:left; width:100%;">
+                <div style="font-size:12px; font-weight:800; color:var(--accent-yellow); margin-bottom:4px;" id="hwSceneTitle">
                   POV SCENE 1/3: URBAN CROSSWALK &amp; TRAFFIC SIGNAL
                 </div>
-                <div style="font-family:monospace; font-size:14px; font-weight:700; color:#FFFFFF; margin-bottom:4px;" id="hwSceneBanner">
+                <div style="font-family:monospace; font-size:15px; font-weight:800; color:#FFFFFF; margin-bottom:4px;" id="hwSceneBanner">
                   [HUD TARGET] WALK SIGNAL: 14 SEC • 5TH AVE
                 </div>
-                <div style="font-family:-apple-system,sans-serif; font-size:12px; color:#F5F5F7;" id="hwSceneDesc">
-                  Pedestrian crossing countdown active. Tactile paving aligned at 12 o'clock; cyclist stopped on left.
+                <div style="font-size:13px; color:#D1D1D6;" id="hwSceneDesc">
+                  Pedestrian crossing countdown active. Tactile paving aligned at 12 o’clock; cyclist stopped on left.
                 </div>
               </div>
             </div>
 
-            <!-- Bone-Conduction Audio & Be My Eyes Bridge Output Card -->
-            <div class="scanner-text-overlay">
-              <div class="overlay-top-row">
-                <span class="eyebrow" id="hwBridgeBadge">🔊 META GLASSES SPATIAL AUDIO</span>
-                <span class="tts-live-pill" id="hwAutoPill">MANUAL</span>
+            <div class="feature-reader-card">
+              <div class="card-badge-row">
+                <span class="eyebrow-tag" id="hwBridgeBadge">🔊 META GLASSES SPATIAL AUDIO</span>
+                <span class="status-chip" id="hwAutoPill">MANUAL</span>
               </div>
-              <div class="overlay-scroll">
-                <p class="overlay-reader-text" id="hwOutputText" style="font-size:20px;">
-                  Ray-Ban Meta Smart Glasses connected via Bluetooth LE. Double-tap "Meta Live" for hands-free spatial monitoring, or double-tap "Be My Eyes" to bridge a live volunteer + AI interpreter.
+              <div class="reader-scroll">
+                <p class="reader-large-copy" id="hwOutputText">
+                  Extension Ready. Double-tap "Meta Live" for hands-free spatial monitoring, or double-tap "Be My Eyes" to bridge a live volunteer + AI visual interpreter.
                 </p>
               </div>
             </div>
           </div>
 
-          <!-- BOTTOM CONTROL BAR (25% FIXED, 5 MASSIVE FLEXBOX BUTTONS) -->
-          <div class="feature-bottom-bar-25" role="menubar" aria-label="Hardware Hub Control Bar">
-            <!-- Button 1 (Far Left): Back -->
-            <button
-              type="button"
-              class="bar-btn a11y-touchable"
-              data-label="Back"
-              data-hint="Double tap to stop hardware stream and return to Home Screen."
-              data-action="nav-home"
-            >
-              <span class="bar-icon" aria-hidden="true">←</span>
+          <div class="feature-bottom-bar-25" role="menubar" aria-label="Extensions Control Bar">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back to More Hub" data-hint="Return to the More Hub." data-action="nav-more">
+              <span class="bar-icon">←</span>
               <span class="bar-label">Back</span>
             </button>
-
-            <!-- Button 2 (Center Left): Meta Glasses Live Scan -->
-            <button
-              type="button"
-              class="bar-btn capture-primary a11y-touchable"
-              data-label="Meta Glasses Live Scan"
-              data-hint="Double tap to scan your current point of view with Ray-Ban Meta Smart Glasses."
-              data-action="hw-meta-live"
-            >
-              <span class="bar-icon" aria-hidden="true">🕶️</span>
+            <button type="button" class="bar-btn yellow-primary a11y-touchable" data-label="Meta Glasses Live Scan" data-hint="Analyze current POV with Ray-Ban Meta Smart Glasses." data-action="hw-meta-live">
+              <span class="bar-icon">🕶️</span>
               <span class="bar-label">Meta Live</span>
             </button>
-
-            <!-- Button 3 (Center Right): Be My Eyes App Extension Bridge -->
-            <button
-              type="button"
-              class="bar-btn read-secondary a11y-touchable"
-              data-label="Be My Eyes Extension Bridge"
-              data-hint="Double tap to stream your smart glasses view to the Be My Eyes volunteer and AI visual assistant."
-              data-action="hw-bemyeyes"
-            >
-              <span class="bar-icon" aria-hidden="true">🤝</span>
-              <span class="bar-label">Be My Eyes</span>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Be My Eyes Volunteer Bridge" data-hint="Stream POV and CRNN OCR to Be My Eyes." data-action="hw-bemyeyes">
+              <span class="bar-icon">🤝</span>
+              <span class="bar-label">BeMyEyes</span>
             </button>
-
-            <!-- Button 4 (Far Right): Next POV Scene -->
-            <button
-              type="button"
-              class="bar-btn a11y-touchable"
-              data-label="Next Environment Scene"
-              data-hint="Double tap to switch between Crosswalk, Pharmacy Medicine Bottle, and Bookstore scenes."
-              data-action="hw-next-scene"
-            >
-              <span class="bar-icon" aria-hidden="true">→</span>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Switch POV Scene" data-hint="Switch between Crosswalk, Pharmacy Bottle, and Bookstore." data-action="hw-next-scene">
+              <span class="bar-icon">→</span>
               <span class="bar-label">Scene</span>
             </button>
-
-            <!-- Button 5 (Overflow Rule — Max 5 Buttons): Auto-Monitor Loop -->
-            <button
-              type="button"
-              class="bar-btn more-overflow a11y-touchable"
-              id="hwMoreAutoBtn"
-              data-label="More Continuous Monitoring Menu"
-              data-hint="Double tap to toggle continuous real-time smart glasses monitoring every 8 seconds."
-              data-action="hw-more-auto"
-            >
-              <span class="bar-icon" aria-hidden="true">•••</span>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Toggle Continuous Auto Monitor" data-hint="Toggle automatic 8-second smart glasses monitoring." data-action="hw-more-auto">
+              <span class="bar-icon">•••</span>
               <span class="bar-label" id="hwMoreAutoLabel">Auto</span>
             </button>
           </div>
-
         </div>
       </section>
 
       <!-- ================================================================= -->
-      <!-- SCREEN 3: BOOK SCANNER FEATURE TEMPLATE (BookScannerScreen.js)    -->
+      <!-- BOTTOM AUDIO STATUS & ANIMATED WAVEFORM (Matches Reference Image) -->
       <!-- ================================================================= -->
-      <section class="app-screen" id="screen-scanner" aria-label="Book to Audio Scanner">
-        <div class="feature-template-wrap">
-
-          <!-- TOP / MIDDLE AREA (75% HERO CONTENT) -->
-          <div class="feature-hero-75">
-            <!-- Camera View -->
-            <div
-              class="scanner-camera-box a11y-touchable"
-              data-label="Camera Viewfinder"
-              data-hint="Point at book page. Double tap to capture page."
-              data-action="scanner-capture"
-            >
-              <div class="camera-meta-row" onclick="event.stopPropagation()">
-                <span class="eyebrow" id="crnnBadgeText">CRNN 99.6% • DOCUMENT LENS</span>
-                <label class="upload-pill">
-                  📁 Upload Photo
-                  <input type="file" accept="image/*" style="display:none" onchange="handleFileUpload(event)" />
-                </label>
-              </div>
-
-              <div class="book-strip-preview" id="bookPreviewBox">
-                <strong>CHAPTER IV: THE SILENT LIGHTHOUSE (p. 42)</strong><br/>
-                The wind howled ac- ross the jagged cliffs of Northum- berland, car- rying with it the bitter scent of salt and approaching storm...
-              </div>
-            </div>
-
-            <!-- Large Text Display Overlay -->
-            <div class="scanner-text-overlay">
-              <div class="overlay-top-row">
-                <span class="eyebrow" id="scannerLangBadge">AUDIOBOOK OUTPUT (ENGLISH)</span>
-                <span class="tts-live-pill" id="scannerStatePill">READY</span>
-              </div>
-              <div class="overlay-scroll">
-                <p class="overlay-reader-text" id="scannerOutputText">
-                  Double-tap "Capture" in the bottom bar to extract text with CRNN and narrate with Gemini 3 Flash. Tap any button once to hear what it does.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- BOTTOM CONTROL BAR (25% FIXED, 5 MASSIVE FLEXBOX BUTTONS) -->
-          <div class="feature-bottom-bar-25" role="menubar" aria-label="Feature Control Bar">
-            <!-- Button 1 (Far Left): Back / Before -->
-            <button
-              type="button"
-              class="bar-btn a11y-touchable"
-              data-label="Back"
-              data-hint="Double tap to return to the Home Screen."
-              data-action="nav-home"
-            >
-              <span class="bar-icon" aria-hidden="true">←</span>
-              <span class="bar-label">Back</span>
-            </button>
-
-            <!-- Button 2 (Center Left): Capture -->
-            <button
-              type="button"
-              class="bar-btn capture-primary a11y-touchable"
-              data-label="Capture"
-              data-hint="Double tap to scan the book page and translate with AI."
-              data-action="scanner-capture"
-            >
-              <span class="bar-icon" aria-hidden="true">◎</span>
-              <span class="bar-label">Capture</span>
-            </button>
-
-            <!-- Button 3 (Center Right): Read / Stop -->
-            <button
-              type="button"
-              class="bar-btn read-secondary a11y-touchable"
-              id="readStopBtn"
-              data-label="Read Aloud"
-              data-hint="Double tap to start or stop reading the scanned passage."
-              data-action="scanner-read-stop"
-            >
-              <span class="bar-icon" id="readStopIcon" aria-hidden="true">🔊</span>
-              <span class="bar-label" id="readStopLabel">Read</span>
-            </button>
-
-            <!-- Button 4 (Far Right): Next -->
-            <button
-              type="button"
-              class="bar-btn a11y-touchable"
-              data-label="Next Page"
-              data-hint="Double tap to advance to the next book page and scan."
-              data-action="scanner-next"
-            >
-              <span class="bar-icon" aria-hidden="true">→</span>
-              <span class="bar-label">Next</span>
-            </button>
-
-            <!-- Button 5 (Overflow Rule — Max 5 Buttons): More Auditory Menu -->
-            <button
-              type="button"
-              class="bar-btn more-overflow a11y-touchable"
-              data-label="More Auditory Menu"
-              data-hint="Double tap to cycle target translation language."
-              data-action="scanner-more"
-            >
-              <span class="bar-icon" aria-hidden="true">•••</span>
-              <span class="bar-label">More</span>
-            </button>
-          </div>
-
+      <footer class="audio-footer" aria-live="polite">
+        <div class="audio-status-text" id="ttsCaptionBar">Audio tutorial is playing...</div>
+        <div class="waveform-bars" id="waveformContainer">
+          <div class="wave-bar" style="animation-delay:0.05s"></div>
+          <div class="wave-bar" style="animation-delay:0.15s"></div>
+          <div class="wave-bar" style="animation-delay:0.28s"></div>
+          <div class="wave-bar" style="animation-delay:0.12s"></div>
+          <div class="wave-bar" style="animation-delay:0.35s"></div>
+          <div class="wave-bar" style="animation-delay:0.20s"></div>
+          <div class="wave-bar" style="animation-delay:0.08s"></div>
+          <div class="wave-bar" style="animation-delay:0.42s"></div>
+          <div class="wave-bar" style="animation-delay:0.18s"></div>
+          <div class="wave-bar" style="animation-delay:0.31s"></div>
+          <div class="wave-bar" style="animation-delay:0.04s"></div>
+          <div class="wave-bar" style="animation-delay:0.25s"></div>
+          <div class="wave-bar" style="animation-delay:0.39s"></div>
+          <div class="wave-bar" style="animation-delay:0.14s"></div>
+          <div class="wave-bar" style="animation-delay:0.22s"></div>
+          <div class="wave-bar" style="animation-delay:0.09s"></div>
+          <div class="wave-bar" style="animation-delay:0.33s"></div>
+          <div class="wave-bar" style="animation-delay:0.19s"></div>
+          <div class="wave-bar" style="animation-delay:0.27s"></div>
+          <div class="wave-bar" style="animation-delay:0.11s"></div>
+          <div class="wave-bar" style="animation-delay:0.37s"></div>
+          <div class="wave-bar" style="animation-delay:0.16s"></div>
+          <div class="wave-bar" style="animation-delay:0.06s"></div>
+          <div class="wave-bar" style="animation-delay:0.24s"></div>
         </div>
-      </section>
-
-      <!-- Live Spoken TTS Caption Footer -->
-      <div class="tts-caption-bar" id="ttsCaptionBar" aria-live="polite">
-        🔊 Tap once on any item to hear its voice label. Double-tap to select.
-      </div>
+      </footer>
 
     </div>
   </main>
 
   <script>
-    const DOUBLE_TAP_MS = 360;
     const LANGUAGES = ['English', 'Malay', 'Spanish', 'French', 'Mandarin'];
     const LOCALES = {
       English: 'en-US',
@@ -920,19 +1274,115 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
       Mandarin: 'zh-CN'
     };
 
+    // Real Functional Settings State
+    const VOLUME_LEVELS = [1.0, 0.25, 0.5, 0.75];
+    const TONE_PRESETS = [
+      { name: 'Natural (1.0x)', rate: 0.98, pitch: 1.0 },
+      { name: 'Warm Literary (0.88x)', rate: 0.88, pitch: 0.92 },
+      { name: 'Crisp Fast (1.18x)', rate: 1.18, pitch: 1.05 },
+      { name: 'Deep Calm (0.92x)', rate: 0.92, pitch: 0.82 }
+    ];
+
+    let volIndex = 0;
+    let toneIndex = 0;
+    let voiceIndex = 0;
+    let availableVoices = [];
+    let langIndex = 0;
+
+    // Book Scanner Pages
     const BOOK_PAGES = [
       {
         heading: 'CHAPTER IV: THE SILENT LIGHTHOUSE (p. 42)',
         strip: 'Silent Light.',
-        preview: 'The wind howled ac- ross the jagged cliffs of Northum- berland, car- rying with it the bitter scent of salt and approaching storm...'
+        preview: '"The wind howled ac- ross the jagged cliffs of Northum- berland, car- rying with it the bitter scent of salt..."'
       },
       {
         heading: 'CHAPTER V: BENEATH NORTHERN STARS (p. 43)',
         strip: 'Dark storm.',
-        preview: 'Elara raised her lantern toward the stone tower. Beyond the breakers, a distant bell echoed three times across the freezing bay...'
+        preview: '"Elara raised her lantern toward the stone tower. Beyond the breakers, a distant bell echoed three times..."'
       }
     ];
 
+    // Saved Audiobook Library (inside More)
+    const AUDIOBOOK_LIBRARY = [
+      {
+        title: 'The Silent Lighthouse',
+        chapter: 'Chapter IV • Scanned via CRNN (99.62%)',
+        text: 'Chapter Four: The Silent Lighthouse. The wind howled across the jagged cliffs of Northumberland, carrying with it the bitter scent of salt and an approaching storm.'
+      },
+      {
+        title: 'Beneath Northern Stars',
+        chapter: 'Chapter V • Scanned via CRNN (99.62%)',
+        text: 'Chapter Five: Beneath Northern Stars. Elara raised her lantern toward the ancient stone tower as the distant bell echoed three times across the freezing bay.'
+      },
+      {
+        title: 'Designing Without Sight',
+        chapter: 'Chapter I • Tactile & Voice-First Architecture',
+        text: 'Chapter One: Designing Without Sight. True accessibility begins when every action on a screen can be discovered safely by touch and confirmed clearly by voice.'
+      },
+      {
+        title: 'Neural Sequence Recognition',
+        chapter: 'Chapter II • Convolutional Recurrent Networks',
+        text: 'Chapter Two: Neural Sequence Recognition. By combining convolutional feature maps with bidirectional recurrent layers and C T C loss, printed lines become living speech.'
+      }
+    ];
+
+    // 4 Playable Auditory Games (Web Audio Synthesizer)
+    const AUDITORY_GAMES = [
+      {
+        id: 'PITCH',
+        badge: 'GAME 1/4 • PITCH TRAINING',
+        title: 'Pitch Training',
+        prompt: 'Listen to two sequential tones. Is the 2nd tone Higher or Lower than the 1st tone?',
+        choices: ['Higher Pitch', 'Lower Pitch', 'Same Pitch'],
+        correctIndex: 0,
+        playChallenge: (ctx, vol) => {
+          playSynthNote(ctx, 440, 0.0, 0.32, vol);
+          playSynthNote(ctx, 587.33, 0.42, 0.38, vol);
+        }
+      },
+      {
+        id: 'NOTE',
+        badge: 'GAME 2/4 • NOTE RECOGNISING',
+        title: 'Note Recognising',
+        prompt: 'Listen to this concert reference musical note with harmonics. Which note is playing?',
+        choices: ['Note A4 (440 Hz)', 'Note C4 (Middle C)', 'Note E4 (330 Hz)', 'Note G4 (392 Hz)'],
+        correctIndex: 0,
+        playChallenge: (ctx, vol) => {
+          playSynthNote(ctx, 440, 0.0, 0.65, vol, 'triangle');
+          playSynthNote(ctx, 880, 0.0, 0.45, vol * 0.35, 'sine');
+        }
+      },
+      {
+        id: 'CHORD',
+        badge: 'GAME 3/4 • CHORD IDENTIFYING',
+        title: 'Chord Identifying',
+        prompt: 'Listen to these three notes played together as a triad. Identify the chord quality!',
+        choices: ['C Major Triad (Bright)', 'A Minor Triad (Melancholy)', 'B Diminished Triad (Tense)'],
+        correctIndex: 0,
+        playChallenge: (ctx, vol) => {
+          // C Major Triad: C4 (261.63), E4 (329.63), G4 (392.00)
+          playSynthNote(ctx, 261.63, 0.0, 0.75, vol * 0.6, 'triangle');
+          playSynthNote(ctx, 329.63, 0.06, 0.7, vol * 0.6, 'triangle');
+          playSynthNote(ctx, 392.00, 0.12, 0.65, vol * 0.6, 'triangle');
+        }
+      },
+      {
+        id: 'MEMORY',
+        badge: 'GAME 4/4 • AUDIO MATCHING',
+        title: 'Audio Pattern Match',
+        prompt: 'Memorize the 3-note spatial melody pattern played aloud and match its contour!',
+        choices: ['Low → Mid → High (Ascending)', 'High → Mid → Low (Descending)', 'Low → High → Low (Arch)'],
+        correctIndex: 2,
+        playChallenge: (ctx, vol) => {
+          playSynthNote(ctx, 330, 0.0, 0.25, vol);
+          playSynthNote(ctx, 659.25, 0.32, 0.25, vol);
+          playSynthNote(ctx, 330, 0.64, 0.32, vol);
+        }
+      }
+    ];
+
+    // Extensions: Ray-Ban Meta Smart Glasses & Be My Eyes Scenes
     const HARDWARE_SCENES = [
       {
         id: 'CROSSWALK',
@@ -954,8 +1404,13 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
       }
     ];
 
-    let langIndex = 0;
     let pageIndex = 0;
+    let libBookIndex = 0;
+    let isLibPlaying = false;
+    let gameIndex = 0;
+    let gameChoiceIndex = 0;
+    let gameScore = 0;
+    let gameStreak = 0;
     let hwSceneIndex = 0;
     let hwAutoInterval = null;
     let hwStream = null;
@@ -965,44 +1420,99 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
     let focusedElement = null;
     let singleTapTimer = null;
 
-    function playHapticTone(freq = 520, duration = 0.06) {
+    function ensureAudioCtx() {
+      if (!audioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new Ctx();
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function playSynthNote(ctx, freq, startOffset, duration, volume = 0.2, waveType = 'sine') {
       try {
-        if (!audioCtx) {
-          const Ctx = window.AudioContext || window.webkitAudioContext;
-          audioCtx = new Ctx();
-        }
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = waveType;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + startOffset);
+        gain.gain.setValueAtTime(Math.max(0.02, volume * 0.22), ctx.currentTime + startOffset);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startOffset + duration);
         osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + startOffset);
+        osc.stop(ctx.currentTime + startOffset + duration);
       } catch {}
     }
 
-    function speakTTS(text, lang = 'English', onEnd = null) {
-      document.getElementById('ttsCaptionBar').textContent = '🔊 "' + text.slice(0, 88) + (text.length > 88 ? '..."' : '"');
+    function playHapticTone(freq = 520, duration = 0.06) {
+      try {
+        const ctx = ensureAudioCtx();
+        playSynthNote(ctx, freq, 0, duration, VOLUME_LEVELS[volIndex]);
+      } catch {}
+    }
+
+    function setWaveformActive(active) {
+      const wf = document.getElementById('waveformContainer');
+      if (!wf) return;
+      if (active) wf.classList.add('speaking');
+      else wf.classList.remove('speaking');
+    }
+
+    function loadSystemVoices() {
+      if (!('speechSynthesis' in window)) return;
+      const voices = window.speechSynthesis.getVoices();
+      if (voices && voices.length > 0) {
+        availableVoices = voices;
+        const vName = availableVoices[voiceIndex % availableVoices.length].name.split(' ')[0];
+        const el = document.getElementById('valVoice');
+        if (el) el.textContent = vName;
+      }
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = loadSystemVoices;
+    }
+
+    function speakTTS(text, lang = null, onEnd = null) {
+      const chosenLang = lang || LANGUAGES[langIndex];
+      const caption = document.getElementById('ttsCaptionBar');
+      caption.textContent = text.length > 64 ? text.slice(0, 64) + '...' : text;
+      setWaveformActive(true);
+
       if (!('speechSynthesis' in window)) {
-        if (onEnd) onEnd();
+        setTimeout(() => {
+          setWaveformActive(false);
+          if (onEnd) onEnd();
+        }, 1200);
         return;
       }
+
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = LOCALES[lang] || 'en-US';
-      u.rate = 0.96;
+      u.lang = LOCALES[chosenLang] || 'en-US';
+      u.volume = VOLUME_LEVELS[volIndex];
+      u.rate = TONE_PRESETS[toneIndex].rate;
+      u.pitch = TONE_PRESETS[toneIndex].pitch;
+
+      if (availableVoices.length > 0) {
+        u.voice = availableVoices[voiceIndex % availableVoices.length];
+      }
+
       u.onend = () => {
+        setWaveformActive(false);
+        if (onEnd) onEnd();
+      };
+      u.onerror = () => {
+        setWaveformActive(false);
         if (onEnd) onEnd();
       };
       window.speechSynthesis.speak(u);
     }
 
     function playOnboardingIntro() {
+      document.getElementById('ttsCaptionBar').textContent = 'Audio tutorial is playing...';
       speakTTS(
-        'Welcome to Blind-ER. This app uses a custom voice interface. Tap any item once to hear what it is. Double-tap to select it. Please select your level of visual impairment to optimize your experience.'
+        'Welcome to Blind-ER. Let us set up your experience. Tap any item once to hear what it is. Tap it a second time to open it. Choose Option A for Low Vision, or Option B for Fully Blind Audio-First.'
       );
     }
 
@@ -1017,8 +1527,7 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
     }
 
     // =======================================================================
-    // STEP 1: AccessibleTouchable Engine (1 Tap = TTS Readout, 2 Taps = Act)
-    // Supports BOTH rapid double-tap AND tapping an already-focused item a 2nd time
+    // STEP 1: AccessibleTouchable Engine (1st Tap = TTS Readout, 2nd Tap = Act)
     // =======================================================================
     function attachAccessibleTouchableEngine() {
       const elements = document.querySelectorAll('.a11y-touchable');
@@ -1027,11 +1536,10 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
           e.stopPropagation();
 
           const label = el.getAttribute('data-label') || el.innerText.trim();
-          const hint = el.getAttribute('data-hint') || 'Double tap to select.';
+          const hint = el.getAttribute('data-hint') || 'Tap again to select.';
           const action = el.getAttribute('data-action');
 
           if (focusedElement === el) {
-            // SECOND TAP ON SAME ELEMENT (Fast Double-Tap OR 2nd Tap after hearing TTS) -> Execute Action!
             if (singleTapTimer) {
               clearTimeout(singleTapTimer);
               singleTapTimer = null;
@@ -1041,7 +1549,6 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
             playHapticTone(840, 0.1);
             executeAccessibleAction(action);
           } else {
-            // FIRST TAP ON ELEMENT -> Focus element & speak button label + hint aloud via TTS
             if (singleTapTimer) {
               clearTimeout(singleTapTimer);
               singleTapTimer = null;
@@ -1054,7 +1561,7 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
               playHapticTone(440, 0.05);
               speakTTS(label + '. ' + hint);
               singleTapTimer = null;
-            }, 180);
+            }, 150);
           }
         });
       });
@@ -1062,70 +1569,182 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
 
     async function executeAccessibleAction(actionName) {
       if (actionName === 'select-low-vision') {
-        document.getElementById('a11yModeBadge').textContent = 'Mode: Low Vision (AAA)';
+        document.getElementById('a11yModeBadge').textContent = 'LOW VISION AAA';
         navigateToScreen(
           'home',
-          'Partially Blind, Low Vision mode selected. Home Screen. Top 60 percent is Book Scanner. Tap once to hear, double tap to select.'
+          'Option A: Low Vision mode active. Home Screen. Top 60 percent is Book Scanner. Bottom grid has Auditory Games, More Library and Extensions, Settings, and Back to Setup.'
         );
       } else if (actionName === 'select-fully-blind') {
-        document.getElementById('a11yModeBadge').textContent = 'Mode: Fully Blind (Audio)';
+        document.getElementById('a11yModeBadge').textContent = 'AUDIO-FIRST';
         navigateToScreen(
           'home',
-          'Fully Blind audio mode selected. Home Screen. Top 60 percent is Book Scanner. Tap once to hear, double tap to select.'
-        );
-      } else if (actionName === 'nav-scanner') {
-        navigateToScreen(
-          'scanner',
-          'Book Scanner opened. Top area holds camera and text. Bottom bar has 5 buttons: Back, Capture, Read, Next, and More.'
-        );
-      } else if (actionName === 'nav-hardware-meta') {
-        document.getElementById('hwBridgeBadge').textContent = '🔊 META GLASSES SPATIAL AUDIO';
-        navigateToScreen(
-          'hardware',
-          'Ray-Ban Meta Smart Glasses connected via Bluetooth Low Energy. Battery 94 percent. Double tap Meta Live for real-time scene monitoring, or double tap Be My Eyes for volunteer bridge.'
-        );
-      } else if (actionName === 'nav-hardware-bemyeyes') {
-        document.getElementById('hwBridgeBadge').textContent = '🤝 BE MY EYES VOLUNTEER + AI BRIDGE';
-        navigateToScreen(
-          'hardware',
-          'Be My Eyes Assistive Extension ready. Double tap Be My Eyes in the bottom bar to stream your smart glasses view to an AI and live volunteer interpreter.'
+          'Option B: Fully Blind Audio-First mode active. Home Screen. Top 60 percent is Book Scanner. Bottom grid has Auditory Games, More Library and Extensions, Settings, and Back to Setup.'
         );
       } else if (actionName === 'nav-home') {
         if (hwAutoInterval) {
           clearInterval(hwAutoInterval);
           hwAutoInterval = null;
-          document.getElementById('hwAutoPill').textContent = 'MANUAL';
         }
         isSpeakingPassage = false;
-        updateReadStopUI(false);
-        navigateToScreen('home', 'Returned to Home Screen.');
+        isLibPlaying = false;
+        navigateToScreen('home', 'Home Screen.');
       } else if (actionName === 'nav-onboarding') {
-        navigateToScreen('onboarding', 'Returned to Visual Impairment Setup.');
-      } else if (actionName === 'play-pitch-demo') {
-        playHapticTone(440, 0.25);
-        setTimeout(() => playHapticTone(660, 0.25), 350);
-        speakTTS('Auditory Pitch Training Game: Reference tone 440 Hertz, second tone 660 Hertz, Higher Pitch.');
-      } else if (actionName === 'iot-status') {
-        speakTTS('Smart Home I O T Camera Report: Living room path is clear. Your keys are on the dining table at 10 o clock.');
-      } else if (actionName === 'read-saved') {
-        const textToRead = lastNarratedText || 'Chapter Four: The Silent Lighthouse. The wind howled across the jagged cliffs of Northumberland.';
-        speakTTS(textToRead, LANGUAGES[langIndex]);
-      } else if (actionName === 'scanner-capture') {
+        navigateToScreen('onboarding', 'Back to Welcome Visual Setup. Choose Option A Low Vision or Option B Fully Blind.');
+      } else if (actionName === 'nav-scanner') {
+        navigateToScreen(
+          'scanner',
+          'Book Scanner opened. Top 75 percent holds viewfinder and reader. Bottom bar has Back, Capture, Read, Next, and More.'
+        );
+      } else if (actionName === 'nav-more') {
+        document.getElementById('libraryCountChip').textContent = `${AUDIOBOOK_LIBRARY.length} BOOKS SAVED`;
+        navigateToScreen(
+          'more',
+          `More Hub opened. Contains your Audiobook Library with ${AUDIOBOOK_LIBRARY.length} saved books, plus Ray-Ban Meta Smart Glasses and Be My Eyes extensions.`
+        );
+      } else if (actionName === 'nav-library') {
+        renderLibraryBook();
+        navigateToScreen(
+          'library',
+          `Audiobook Library opened. Book 1 of ${AUDIOBOOK_LIBRARY.length}: ${AUDIOBOOK_LIBRARY[libBookIndex].title}. Tap Play in the bottom bar to listen.`
+        );
+      } else if (actionName === 'nav-games') {
+        renderAuditoryGame();
+        navigateToScreen(
+          'games',
+          'Auditory Games Suite opened. Game 1 of 4: Pitch Training. Tap Hear in the bottom bar to play the sound challenge.'
+        );
+      } else if (actionName === 'nav-settings') {
+        navigateToScreen(
+          'settings',
+          'Settings opened. Adjust Volume Control, Tone and Pacing, Change Voice, Change Language, or Check for Updates.'
+        );
+      } else if (actionName === 'nav-hardware-meta') {
+        document.getElementById('hwBridgeBadge').textContent = '🔊 META GLASSES SPATIAL AUDIO';
+        navigateToScreen(
+          'hardware',
+          'Ray-Ban Meta Smart Glasses Extension connected. Double tap Meta Live in the bottom bar for real-time P O V monitoring.'
+        );
+      } else if (actionName === 'nav-hardware-bemyeyes') {
+        document.getElementById('hwBridgeBadge').textContent = '🤝 BE MY EYES VOLUNTEER + AI BRIDGE';
+        navigateToScreen(
+          'hardware',
+          'Be My Eyes Extension ready. Double tap Be My Eyes in the bottom bar to connect live AI and volunteer assistance.'
+        );
+      }
+      // Book Scanner Actions
+      else if (actionName === 'scanner-capture') {
         await runBookCapturePipeline();
       } else if (actionName === 'scanner-read-stop') {
         toggleReadOrStop();
       } else if (actionName === 'scanner-next') {
         pageIndex = (pageIndex + 1) % BOOK_PAGES.length;
         const p = BOOK_PAGES[pageIndex];
-        document.getElementById('bookPreviewBox').innerHTML = `<strong>${p.heading}</strong><br/>${p.preview}`;
-        speakTTS('Next page loaded. Capturing page.');
+        document.getElementById('bookPreviewBox').innerHTML = `${p.heading}<br/><span style="color:#D1D1D6; font-weight:500;">${p.preview}</span>`;
+        speakTTS('Next book page loaded. Capturing page.');
         await runBookCapturePipeline();
-      } else if (actionName === 'scanner-more') {
+      }
+      // Audiobook Library Actions
+      else if (actionName === 'lib-play-pause') {
+        toggleLibraryPlayback();
+      } else if (actionName === 'lib-prev-book') {
+        libBookIndex = (libBookIndex - 1 + AUDIOBOOK_LIBRARY.length) % AUDIOBOOK_LIBRARY.length;
+        renderLibraryBook();
+        speakTTS(`Selected ${AUDIOBOOK_LIBRARY[libBookIndex].title}.`);
+      } else if (actionName === 'lib-next-book') {
+        libBookIndex = (libBookIndex + 1) % AUDIOBOOK_LIBRARY.length;
+        renderLibraryBook();
+        speakTTS(`Selected ${AUDIOBOOK_LIBRARY[libBookIndex].title}.`);
+      } else if (actionName === 'lib-cycle-lang') {
         langIndex = (langIndex + 1) % LANGUAGES.length;
         const newLang = LANGUAGES[langIndex];
+        document.getElementById('libLangBadge').textContent = `NARRATION LANGUAGE: ${newLang.toUpperCase()}`;
+        document.getElementById('valLanguage').textContent = newLang;
+        speakTTS(`Audiobook language switched to ${newLang}.`);
+      }
+      // Auditory Games Actions
+      else if (actionName === 'game-play-sound') {
+        const ctx = ensureAudioCtx();
+        const g = AUDITORY_GAMES[gameIndex];
+        setWaveformActive(true);
+        g.playChallenge(ctx, VOLUME_LEVELS[volIndex]);
+        setTimeout(() => setWaveformActive(false), 950);
+      } else if (actionName === 'game-cycle-choice') {
+        const g = AUDITORY_GAMES[gameIndex];
+        gameChoiceIndex = (gameChoiceIndex + 1) % g.choices.length;
+        const c = g.choices[gameChoiceIndex];
+        document.getElementById('gameChoiceChip').textContent = `CHOICE ${gameChoiceIndex + 1}/${g.choices.length}`;
+        document.getElementById('gameFeedbackText').textContent = `Current Choice: ${c}`;
+        speakTTS(`Choice ${gameChoiceIndex + 1}: ${c}. Tap Submit to verify.`);
+      } else if (actionName === 'game-submit-answer') {
+        const g = AUDITORY_GAMES[gameIndex];
+        const chosen = g.choices[gameChoiceIndex];
+        if (gameChoiceIndex === g.correctIndex) {
+          gameScore += 10;
+          gameStreak += 1;
+          playHapticTone(880, 0.18);
+          document.getElementById('gameScoreChip').textContent = `SCORE: ${gameScore} • STREAK: ${gameStreak}`;
+          document.getElementById('gameFeedbackText').textContent = `✓ Correct! (${chosen})`;
+          speakTTS(`Correct! ${chosen}. Score is now ${gameScore}, streak ${gameStreak}.`);
+        } else {
+          gameStreak = 0;
+          playHapticTone(240, 0.22);
+          document.getElementById('gameScoreChip').textContent = `SCORE: ${gameScore} • STREAK: 0`;
+          document.getElementById('gameFeedbackText').textContent = `✗ Try Again! Hear the sound and cycle Choice.`;
+          speakTTS(`Not quite. You selected ${chosen}. Tap Hear to listen again, or cycle Choice.`);
+        }
+      } else if (actionName === 'game-next-mode') {
+        gameIndex = (gameIndex + 1) % AUDITORY_GAMES.length;
+        gameChoiceIndex = 0;
+        renderAuditoryGame();
+        const g = AUDITORY_GAMES[gameIndex];
+        speakTTS(`Switched to ${g.title}. ${g.prompt}`);
+      }
+      // Real Settings Actions
+      else if (actionName === 'setting-volume') {
+        volIndex = (volIndex + 1) % VOLUME_LEVELS.length;
+        const pct = Math.round(VOLUME_LEVELS[volIndex] * 100) + '%';
+        document.getElementById('valVolume').textContent = pct;
+        playHapticTone(600, 0.08);
+        speakTTS(`Volume set to ${pct}.`);
+      } else if (actionName === 'setting-tone') {
+        toneIndex = (toneIndex + 1) % TONE_PRESETS.length;
+        const t = TONE_PRESETS[toneIndex];
+        document.getElementById('valTone').textContent = t.name;
+        speakTTS(`Voice tone and pacing set to ${t.name}.`);
+      } else if (actionName === 'setting-voice') {
+        loadSystemVoices();
+        if (availableVoices.length > 0) {
+          voiceIndex = (voiceIndex + 1) % availableVoices.length;
+          const v = availableVoices[voiceIndex];
+          const shortName = v.name.replace(/Microsoft |Google |Online \(Natural\) - /g, '').slice(0, 18);
+          document.getElementById('valVoice').textContent = shortName;
+          speakTTS(`Narrator voice changed to ${shortName}.`);
+        } else {
+          speakTTS('Using default system neural narrator voice.');
+        }
+      } else if (actionName === 'setting-language') {
+        langIndex = (langIndex + 1) % LANGUAGES.length;
+        const newLang = LANGUAGES[langIndex];
+        document.getElementById('valLanguage').textContent = newLang;
         document.getElementById('scannerLangBadge').textContent = `AUDIOBOOK OUTPUT (${newLang.toUpperCase()})`;
-        speakTTS(`More Menu: Target language changed to ${newLang}. Double tap Capture to translate.`);
-      } else if (actionName === 'hw-meta-live') {
+        document.getElementById('libLangBadge').textContent = `NARRATION LANGUAGE: ${newLang.toUpperCase()}`;
+        speakTTS(`Primary app and translation language set to ${newLang}.`);
+      } else if (actionName === 'setting-update') {
+        document.getElementById('valUpdate').textContent = 'CHECKING...';
+        speakTTS('Checking Blind-ER server for AI model updates.');
+        try {
+          const res = await fetch('/health');
+          const data = await res.json();
+          document.getElementById('valUpdate').textContent = `v${data.version || '2.4.0'} LATEST`;
+          document.getElementById('subUpdateStatus').textContent = `CRNN (${data.crnn_mode}) • Gemini Ready`;
+          speakTTS(`Blind-ER version ${data.version || '2.4.0'} is up to date. Custom C R N N weights and Gemini 3 Flash are online.`);
+        } catch {
+          document.getElementById('valUpdate').textContent = 'v2.4.0 LOCAL';
+          speakTTS('Blind-ER version 2.4.0 local runtime is up to date.');
+        }
+      }
+      // Hardware & Extension Actions
+      else if (actionName === 'hw-meta-live') {
         await runHardwareAssist('META_GLASSES');
       } else if (actionName === 'hw-bemyeyes') {
         await runHardwareAssist('BE_MY_EYES');
@@ -1136,13 +1755,150 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
       }
     }
 
+    function renderLibraryBook() {
+      const b = AUDIOBOOK_LIBRARY[libBookIndex];
+      document.getElementById('libIndexBadge').textContent = `BOOK ${libBookIndex + 1} OF ${AUDIOBOOK_LIBRARY.length} • SAVED LIBRARY`;
+      document.getElementById('libBookTitle').textContent = b.title;
+      document.getElementById('libChapterSub').textContent = b.chapter;
+      document.getElementById('libChapterText').textContent = b.text;
+    }
+
+    function toggleLibraryPlayback() {
+      const b = AUDIOBOOK_LIBRARY[libBookIndex];
+      if (isLibPlaying) {
+        window.speechSynthesis.cancel();
+        isLibPlaying = false;
+        setWaveformActive(false);
+        document.getElementById('libStatusChip').textContent = 'PAUSED';
+        document.getElementById('libPlayIcon').textContent = '▶';
+        document.getElementById('libPlayLabel').textContent = 'Play';
+        speakTTS('Audiobook paused.');
+      } else {
+        isLibPlaying = true;
+        document.getElementById('libStatusChip').textContent = 'PLAYING';
+        document.getElementById('libPlayIcon').textContent = '⏸';
+        document.getElementById('libPlayLabel').textContent = 'Pause';
+        speakTTS(`${b.title}. ${b.text}`, LANGUAGES[langIndex], () => {
+          isLibPlaying = false;
+          document.getElementById('libStatusChip').textContent = 'FINISHED';
+          document.getElementById('libPlayIcon').textContent = '▶';
+          document.getElementById('libPlayLabel').textContent = 'Play';
+        });
+      }
+    }
+
+    function renderAuditoryGame() {
+      const g = AUDITORY_GAMES[gameIndex];
+      document.getElementById('gameModeBadge').textContent = g.badge;
+      document.getElementById('gameTitleText').textContent = g.title;
+      document.getElementById('gameSubPrompt').textContent = g.prompt;
+      document.getElementById('gameChoiceChip').textContent = `CHOICE 1/${g.choices.length}`;
+      document.getElementById('gameFeedbackText').textContent = `Current Choice: ${g.choices[0]}`;
+    }
+
+    function updateReadStopUI(speaking) {
+      isSpeakingPassage = speaking;
+      const btn = document.getElementById('readStopBtn');
+      document.getElementById('readStopIcon').textContent = speaking ? '⏹' : '🔊';
+      document.getElementById('readStopLabel').textContent = speaking ? 'Stop' : 'Read';
+      btn.setAttribute('data-label', speaking ? 'Stop Audio' : 'Read Aloud');
+    }
+
+    async function runBookCapturePipeline() {
+      const targetLanguage = LANGUAGES[langIndex];
+      const currentPage = BOOK_PAGES[pageIndex];
+      document.getElementById('scannerStatePill').textContent = 'SCANNING...';
+      speakTTS('Capturing book page with Custom C R N N and Gemini 3 Flash.');
+
+      try {
+        const res = await fetch('/api/demo-scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            target_language: targetLanguage,
+            sample_text: currentPage.strip
+          })
+        });
+        const data = await res.json();
+        lastNarratedText = data.narrated_text;
+        document.getElementById('scannerOutputText').textContent = data.narrated_text;
+        const conf = data.crnn_confidence ? (data.crnn_confidence * 100).toFixed(2) + '%' : '99.62%';
+        document.getElementById('crnnBadgeText').textContent = `CRNN ${conf} • SAVED TO LIBRARY`;
+        document.getElementById('scannerStatePill').textContent = 'NARRATING';
+
+        // Save newly scanned passage to the Audiobook Library inside More
+        AUDIOBOOK_LIBRARY.unshift({
+          title: `Scanned Page (${targetLanguage})`,
+          chapter: `${currentPage.heading} • CRNN ${conf}`,
+          text: data.narrated_text
+        });
+
+        updateReadStopUI(true);
+        speakTTS(data.narrated_text, targetLanguage, () => {
+          updateReadStopUI(false);
+          document.getElementById('scannerStatePill').textContent = 'SAVED';
+        });
+      } catch {
+        document.getElementById('scannerStatePill').textContent = 'ERROR';
+        speakTTS('Scan failed. Please check backend connection.');
+      }
+    }
+
+    async function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const targetLanguage = LANGUAGES[langIndex];
+      document.getElementById('scannerStatePill').textContent = 'UPLOADING...';
+      speakTTS('Scanning uploaded book image.');
+
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('target_language', targetLanguage);
+
+      try {
+        const res = await fetch('/api/scan-book-page', { method: 'POST', body: formData });
+        const data = await res.json();
+        lastNarratedText = data.narrated_text;
+        document.getElementById('scannerOutputText').textContent = data.narrated_text;
+        document.getElementById('scannerStatePill').textContent = 'NARRATING';
+        AUDIOBOOK_LIBRARY.unshift({
+          title: `Uploaded Scan (${targetLanguage})`,
+          chapter: 'Custom Image Upload • CRNN + Gemini 3',
+          text: data.narrated_text
+        });
+        updateReadStopUI(true);
+        speakTTS(data.narrated_text, targetLanguage, () => {
+          updateReadStopUI(false);
+          document.getElementById('scannerStatePill').textContent = 'SAVED';
+        });
+      } catch {
+        speakTTS('Image upload failed.');
+      }
+    }
+
+    function toggleReadOrStop() {
+      if (isSpeakingPassage) {
+        window.speechSynthesis.cancel();
+        updateReadStopUI(false);
+        setWaveformActive(false);
+        document.getElementById('scannerStatePill').textContent = 'PAUSED';
+        speakTTS('Audio stopped.');
+      } else {
+        const text = lastNarratedText || 'No book page captured yet. Double tap Capture to scan a page.';
+        updateReadStopUI(true);
+        speakTTS(text, LANGUAGES[langIndex], () => {
+          updateReadStopUI(false);
+        });
+      }
+    }
+
     function cycleHardwareScene() {
       hwSceneIndex = (hwSceneIndex + 1) % HARDWARE_SCENES.length;
       const sc = HARDWARE_SCENES[hwSceneIndex];
       document.getElementById('hwSceneTitle').textContent = sc.title;
       document.getElementById('hwSceneBanner').textContent = sc.banner;
       document.getElementById('hwSceneDesc').textContent = sc.desc;
-      speakTTS(`Environment switched to ${sc.title}. Double tap Meta Live or Be My Eyes to analyze.`);
+      speakTTS(`Environment switched to ${sc.title}.`);
     }
 
     async function runHardwareAssist(deviceMode) {
@@ -1179,7 +1935,7 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
           : `🕶️ META GLASSES • CRNN ${conf} • 12ms`;
         document.getElementById('hwAutoPill').textContent = hwAutoInterval ? 'AUTO: LIVE 8s' : 'LIVE READY';
         speakTTS(data.spoken_guidance, targetLanguage);
-      } catch (err) {
+      } catch {
         document.getElementById('hwAutoPill').textContent = 'OFFLINE';
         speakTTS('Hardware bridge error. Please verify backend server.');
       }
@@ -1195,7 +1951,7 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
       } else {
         document.getElementById('hwAutoPill').textContent = 'AUTO: LIVE 8s';
         document.getElementById('hwMoreAutoLabel').textContent = 'Stop';
-        speakTTS('Continuous real-time Meta Glasses monitoring enabled. Scanning every 8 seconds.');
+        speakTTS('Continuous real-time Meta Glasses monitoring enabled.');
         runHardwareAssist('META_GLASSES');
         hwAutoInterval = setInterval(() => {
           hwSceneIndex = (hwSceneIndex + 1) % HARDWARE_SCENES.length;
@@ -1231,95 +1987,12 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
       }
     }
 
-    function updateReadStopUI(speaking) {
-      isSpeakingPassage = speaking;
-      const btn = document.getElementById('readStopBtn');
-      document.getElementById('readStopIcon').textContent = speaking ? '⏹' : '🔊';
-      document.getElementById('readStopLabel').textContent = speaking ? 'Stop' : 'Read';
-      btn.setAttribute('data-label', speaking ? 'Stop Audio' : 'Read Aloud');
-    }
-
-    async function runBookCapturePipeline() {
-      const targetLanguage = LANGUAGES[langIndex];
-      const currentPage = BOOK_PAGES[pageIndex];
-      document.getElementById('scannerStatePill').textContent = 'SCANNING...';
-      speakTTS('Capturing book page and running C R N N and Gemini AI.');
-
-      try {
-        const res = await fetch('/api/demo-scan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            target_language: targetLanguage,
-            sample_text: currentPage.strip
-          })
-        });
-        const data = await res.json();
-        lastNarratedText = data.narrated_text;
-        document.getElementById('scannerOutputText').textContent = data.narrated_text;
-        const conf = data.crnn_confidence ? (data.crnn_confidence * 100).toFixed(2) + '%' : '99.62%';
-        document.getElementById('crnnBadgeText').textContent = `CRNN ${conf} • ${ data.llm_model || 'GEMINI 3' }`;
-        document.getElementById('scannerStatePill').textContent = 'NARRATING';
-
-        updateReadStopUI(true);
-        speakTTS(data.narrated_text, targetLanguage, () => {
-          updateReadStopUI(false);
-          document.getElementById('scannerStatePill').textContent = 'DONE';
-        });
-      } catch (err) {
-        document.getElementById('scannerStatePill').textContent = 'ERROR';
-        speakTTS('Scan failed. Please check backend connection.');
-      }
-    }
-
-    async function handleFileUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const targetLanguage = LANGUAGES[langIndex];
-      document.getElementById('scannerStatePill').textContent = 'UPLOADING...';
-      speakTTS('Scanning uploaded book image.');
-
-      const formData = new FormData();
-      formData.append('image', file);
-      formData.append('target_language', targetLanguage);
-
-      try {
-        const res = await fetch('/api/scan-book-page', { method: 'POST', body: formData });
-        const data = await res.json();
-        lastNarratedText = data.narrated_text;
-        document.getElementById('scannerOutputText').textContent = data.narrated_text;
-        document.getElementById('scannerStatePill').textContent = 'NARRATING';
-        updateReadStopUI(true);
-        speakTTS(data.narrated_text, targetLanguage, () => {
-          updateReadStopUI(false);
-          document.getElementById('scannerStatePill').textContent = 'DONE';
-        });
-      } catch {
-        speakTTS('Image upload failed.');
-      }
-    }
-
-    function toggleReadOrStop() {
-      if (isSpeakingPassage) {
-        window.speechSynthesis.cancel();
-        updateReadStopUI(false);
-        document.getElementById('scannerStatePill').textContent = 'PAUSED';
-        speakTTS('Audio stopped.');
-      } else {
-        const text = lastNarratedText || 'No book page captured yet. Double tap Capture to scan a page.';
-        updateReadStopUI(true);
-        speakTTS(text, LANGUAGES[langIndex], () => {
-          updateReadStopUI(false);
-        });
-      }
-    }
-
     window.addEventListener('DOMContentLoaded', () => {
+      loadSystemVoices();
       attachAccessibleTouchableEngine();
-      // Attempt auto-play of onboarding voice prompt on load
       setTimeout(() => {
         playOnboardingIntro();
-      }, 400);
+      }, 350);
     });
   </script>
 </body>
