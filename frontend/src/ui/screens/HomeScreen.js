@@ -2,10 +2,8 @@
  * Blind-ER Screen 2: HomeScreen.js
  * Minimalist, color-blocked Apple-inspired Home Screen:
  *   - Top 60% Hero Element: Massive single "Book Scanner" button.
- *     One tap: "Book Scanner. Double tap to open camera."
- *     Double tap: Navigates to BookScannerScreen.
- *   - Bottom 40% Secondary Grid: 2x2 grid of massive hitboxes ("Auditory Games",
- *     "Smart Home IoT", "Saved Library", "Settings").
+ *   - Bottom 40% Secondary Grid: 2x2 grid of massive hitboxes ("Meta Glasses",
+ *     "Be My Eyes Bridge", "Auditory Games", "Settings").
  */
 
 import React, { useEffect } from 'react';
@@ -19,7 +17,7 @@ export default function HomeScreen({ navigation, route }) {
 
   useEffect(() => {
     speakAssistivePrompt(
-      'Home Screen. Top sixty percent is Book Scanner. Bottom forty percent contains Auditory Games, Smart Home I O T, Saved Library, and Settings. Tap once to hear any button, double tap to open.'
+      'Home Screen. Top sixty percent is Book Scanner. Bottom forty percent contains Meta Smart Glasses, Be My Eyes Extension, Auditory Games, and Settings. Tap once to hear any button, double tap to open.'
     );
   }, []);
 
@@ -56,6 +54,40 @@ export default function HomeScreen({ navigation, route }) {
       <View style={styles.secondarySection}>
         <View style={styles.gridRow}>
           <AccessibleTouchable
+            label="Ray-Ban Meta Smart Glasses"
+            ttsHint="Real-time wearable camera monitoring and bone conduction audio. Double tap to connect."
+            confirmSpeech="Opening Ray-Ban Meta Smart Glasses Live Monitor."
+            onDoubleTap={() =>
+              navigation?.navigate &&
+              navigation.navigate('HardwareHub', { initialMode: 'META_GLASSES' })
+            }
+            style={styles.secondaryTile}
+          >
+            <Text style={styles.tileIcon} accessible={false}>
+              🕶️
+            </Text>
+            <Text style={styles.tileTitle}>Meta Glasses</Text>
+          </AccessibleTouchable>
+
+          <AccessibleTouchable
+            label="Be My Eyes Extension Bridge"
+            ttsHint="Connect live camera and C R N N telemetry with Be My Eyes visual assistant. Double tap to open."
+            confirmSpeech="Opening Be My Eyes Extension Bridge."
+            onDoubleTap={() =>
+              navigation?.navigate &&
+              navigation.navigate('HardwareHub', { initialMode: 'BE_MY_EYES' })
+            }
+            style={styles.secondaryTile}
+          >
+            <Text style={styles.tileIcon} accessible={false}>
+              🤝
+            </Text>
+            <Text style={styles.tileTitle}>Be My Eyes</Text>
+          </AccessibleTouchable>
+        </View>
+
+        <View style={styles.gridRow}>
+          <AccessibleTouchable
             label="Auditory Games"
             ttsHint="Pitch training and spatial echolocation exercises. Double tap to open."
             confirmSpeech="Opening Auditory Games."
@@ -68,42 +100,6 @@ export default function HomeScreen({ navigation, route }) {
               🎯
             </Text>
             <Text style={styles.tileTitle}>Auditory Games</Text>
-          </AccessibleTouchable>
-
-          <AccessibleTouchable
-            label="Smart Home Cameras"
-            ttsHint="Check kitchen stove and room object finder. Double tap to open."
-            confirmSpeech="Checking Smart Home IoT Cameras."
-            onDoubleTap={() =>
-              speakAssistivePrompt(
-                'Smart Home Status: Living room clear. Keys are at 10 o clock on the dining table.'
-              )
-            }
-            style={styles.secondaryTile}
-          >
-            <Text style={styles.tileIcon} accessible={false}>
-              🏠
-            </Text>
-            <Text style={styles.tileTitle}>Smart Home</Text>
-          </AccessibleTouchable>
-        </View>
-
-        <View style={styles.gridRow}>
-          <AccessibleTouchable
-            label="Saved Library"
-            ttsHint="Listen to previously scanned book chapters. Double tap to open."
-            confirmSpeech="Opening Saved Audiobook Library."
-            onDoubleTap={() =>
-              speakAssistivePrompt(
-                'Saved Library: Chapter Four, The Silent Lighthouse.'
-              )
-            }
-            style={styles.secondaryTile}
-          >
-            <Text style={styles.tileIcon} accessible={false}>
-              📚
-            </Text>
-            <Text style={styles.tileTitle}>Library</Text>
           </AccessibleTouchable>
 
           <AccessibleTouchable
@@ -134,13 +130,13 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   heroSection: {
-    flex: 6, // Top 60% of the screen
+    flex: 6,
     width: '100%',
   },
   heroButton: {
     flex: 1,
     width: '100%',
-    backgroundColor: '#FFD600', // High-Contrast Safety Yellow on Pure Black
+    backgroundColor: '#FFD600',
     borderRadius: 11,
     borderWidth: 3,
     borderColor: '#FFFFFF',
@@ -174,7 +170,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   secondarySection: {
-    flex: 4, // Bottom 40% of the screen
+    flex: 4,
     width: '100%',
     gap: 16,
   },
@@ -185,7 +181,7 @@ const styles = StyleSheet.create({
   },
   secondaryTile: {
     flex: 1,
-    backgroundColor: '#1D1D1F', // Apple Dark Primary Surface
+    backgroundColor: '#1D1D1F',
     borderRadius: 11,
     borderWidth: 2,
     borderColor: '#F5F5F7',
@@ -199,7 +195,7 @@ const styles = StyleSheet.create({
   },
   tileTitle: {
     color: '#FFFFFF',
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: '600',
     textAlign: 'center',
   },

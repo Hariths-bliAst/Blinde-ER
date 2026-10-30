@@ -605,34 +605,36 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
             <button
               type="button"
               class="secondary-tile a11y-touchable"
+              style="border-color: var(--high-vis-yellow);"
+              data-label="Meta Smart Glasses"
+              data-hint="Ray-Ban Meta Smart Glasses live P O V monitoring. Double tap to connect."
+              data-action="nav-hardware-meta"
+            >
+              <span class="tile-icon" aria-hidden="true">🕶️</span>
+              <span class="tile-label" style="color: var(--high-vis-yellow);">Meta Glasses</span>
+            </button>
+
+            <button
+              type="button"
+              class="secondary-tile a11y-touchable"
+              style="border-color: #6086BD;"
+              data-label="Be My Eyes Extension"
+              data-hint="Connect to Be My Eyes volunteer and AI visual bridge. Double tap to open."
+              data-action="nav-hardware-bemyeyes"
+            >
+              <span class="tile-icon" aria-hidden="true">🤝</span>
+              <span class="tile-label">Be My Eyes</span>
+            </button>
+
+            <button
+              type="button"
+              class="secondary-tile a11y-touchable"
               data-label="Auditory Games"
               data-hint="Audio pitch training game. Double tap to play a pitch challenge."
               data-action="play-pitch-demo"
             >
               <span class="tile-icon" aria-hidden="true">🎯</span>
               <span class="tile-label">Auditory Games</span>
-            </button>
-
-            <button
-              type="button"
-              class="secondary-tile a11y-touchable"
-              data-label="Smart Home Cameras"
-              data-hint="IoT home safety status. Double tap to hear room report."
-              data-action="iot-status"
-            >
-              <span class="tile-icon" aria-hidden="true">🏠</span>
-              <span class="tile-label">Smart Home</span>
-            </button>
-
-            <button
-              type="button"
-              class="secondary-tile a11y-touchable"
-              data-label="Saved Library"
-              data-hint="Double tap to hear your last scanned audiobook chapter."
-              data-action="read-saved"
-            >
-              <span class="tile-icon" aria-hidden="true">📚</span>
-              <span class="tile-label">Library</span>
             </button>
 
             <button
@@ -646,6 +648,131 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
               <span class="tile-label">Settings</span>
             </button>
           </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SCREEN 4: HARDWARE & EXTENSION HUB (HardwareHubScreen.js)         -->
+      <!-- ================================================================= -->
+      <section class="app-screen" id="screen-hardware" aria-label="Ray-Ban Meta Smart Glasses and Be My Eyes Hub">
+        <div class="feature-template-wrap">
+
+          <!-- TOP / MIDDLE AREA (75% HERO CONTENT) -->
+          <div class="feature-hero-75">
+            <!-- Ray-Ban Meta Smart Glasses Live POV HUD -->
+            <div
+              class="scanner-camera-box a11y-touchable"
+              id="hwHudBox"
+              data-label="Ray-Ban Meta Smart Glasses Live Point of View Feed"
+              data-hint="Double tap to trigger real-time scene monitoring."
+              data-action="hw-meta-live"
+            >
+              <video
+                id="hwWebcamVideo"
+                autoplay
+                playsinline
+                muted
+                style="display:none; position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0.55;"
+              ></video>
+
+              <div class="camera-meta-row" onclick="event.stopPropagation()" style="z-index:2;">
+                <span class="eyebrow" id="hwDeviceBanner">🕶️ META GLASSES • BLE 94% • 12ms</span>
+                <button type="button" class="upload-pill" onclick="toggleHardwareWebcam(event)" id="hwCamToggleBtn">
+                  📷 Live POV Cam
+                </button>
+              </div>
+
+              <div class="book-strip-preview" id="hwSceneBox" style="z-index:2; background:#0C0F12; color:#FFFFFF; border:2px solid var(--high-vis-yellow);">
+                <div style="font-family:-apple-system,sans-serif; font-size:11px; font-weight:700; color:var(--high-vis-yellow); margin-bottom:4px;" id="hwSceneTitle">
+                  POV SCENE 1/3: URBAN CROSSWALK &amp; TRAFFIC SIGNAL
+                </div>
+                <div style="font-family:monospace; font-size:14px; font-weight:700; color:#FFFFFF; margin-bottom:4px;" id="hwSceneBanner">
+                  [HUD TARGET] WALK SIGNAL: 14 SEC • 5TH AVE
+                </div>
+                <div style="font-family:-apple-system,sans-serif; font-size:12px; color:#F5F5F7;" id="hwSceneDesc">
+                  Pedestrian crossing countdown active. Tactile paving aligned at 12 o'clock; cyclist stopped on left.
+                </div>
+              </div>
+            </div>
+
+            <!-- Bone-Conduction Audio & Be My Eyes Bridge Output Card -->
+            <div class="scanner-text-overlay">
+              <div class="overlay-top-row">
+                <span class="eyebrow" id="hwBridgeBadge">🔊 META GLASSES SPATIAL AUDIO</span>
+                <span class="tts-live-pill" id="hwAutoPill">MANUAL</span>
+              </div>
+              <div class="overlay-scroll">
+                <p class="overlay-reader-text" id="hwOutputText" style="font-size:20px;">
+                  Ray-Ban Meta Smart Glasses connected via Bluetooth LE. Double-tap "Meta Live" for hands-free spatial monitoring, or double-tap "Be My Eyes" to bridge a live volunteer + AI interpreter.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- BOTTOM CONTROL BAR (25% FIXED, 5 MASSIVE FLEXBOX BUTTONS) -->
+          <div class="feature-bottom-bar-25" role="menubar" aria-label="Hardware Hub Control Bar">
+            <!-- Button 1 (Far Left): Back -->
+            <button
+              type="button"
+              class="bar-btn a11y-touchable"
+              data-label="Back"
+              data-hint="Double tap to stop hardware stream and return to Home Screen."
+              data-action="nav-home"
+            >
+              <span class="bar-icon" aria-hidden="true">←</span>
+              <span class="bar-label">Back</span>
+            </button>
+
+            <!-- Button 2 (Center Left): Meta Glasses Live Scan -->
+            <button
+              type="button"
+              class="bar-btn capture-primary a11y-touchable"
+              data-label="Meta Glasses Live Scan"
+              data-hint="Double tap to scan your current point of view with Ray-Ban Meta Smart Glasses."
+              data-action="hw-meta-live"
+            >
+              <span class="bar-icon" aria-hidden="true">🕶️</span>
+              <span class="bar-label">Meta Live</span>
+            </button>
+
+            <!-- Button 3 (Center Right): Be My Eyes App Extension Bridge -->
+            <button
+              type="button"
+              class="bar-btn read-secondary a11y-touchable"
+              data-label="Be My Eyes Extension Bridge"
+              data-hint="Double tap to stream your smart glasses view to the Be My Eyes volunteer and AI visual assistant."
+              data-action="hw-bemyeyes"
+            >
+              <span class="bar-icon" aria-hidden="true">🤝</span>
+              <span class="bar-label">Be My Eyes</span>
+            </button>
+
+            <!-- Button 4 (Far Right): Next POV Scene -->
+            <button
+              type="button"
+              class="bar-btn a11y-touchable"
+              data-label="Next Environment Scene"
+              data-hint="Double tap to switch between Crosswalk, Pharmacy Medicine Bottle, and Bookstore scenes."
+              data-action="hw-next-scene"
+            >
+              <span class="bar-icon" aria-hidden="true">→</span>
+              <span class="bar-label">Scene</span>
+            </button>
+
+            <!-- Button 5 (Overflow Rule — Max 5 Buttons): Auto-Monitor Loop -->
+            <button
+              type="button"
+              class="bar-btn more-overflow a11y-touchable"
+              id="hwMoreAutoBtn"
+              data-label="More Continuous Monitoring Menu"
+              data-hint="Double tap to toggle continuous real-time smart glasses monitoring every 8 seconds."
+              data-action="hw-more-auto"
+            >
+              <span class="bar-icon" aria-hidden="true">•••</span>
+              <span class="bar-label" id="hwMoreAutoLabel">Auto</span>
+            </button>
+          </div>
+
         </div>
       </section>
 
@@ -791,8 +918,32 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
       }
     ];
 
+    const HARDWARE_SCENES = [
+      {
+        id: 'CROSSWALK',
+        title: 'POV SCENE 1/3: URBAN CROSSWALK & TRAFFIC SIGNAL',
+        banner: '[HUD TARGET] WALK SIGNAL: 14 SEC • 5TH AVE',
+        desc: 'Pedestrian crossing countdown active. Tactile paving aligned at 12 o\'clock; cyclist stopped on left.'
+      },
+      {
+        id: 'PHARMACY',
+        title: 'POV SCENE 2/3: PRESCRIPTION MEDICINE BOTTLE',
+        banner: '[HUD TARGET] AMOXICILLIN 500MG • 1 CAP 8H',
+        desc: 'Holding amber pharmacy bottle. High-contrast label detected by Meta Glasses 12MP POV camera.'
+      },
+      {
+        id: 'BOOKSTORE',
+        title: 'POV SCENE 3/3: HANDS-FREE BOOK READING',
+        banner: '[HUD TARGET] CHAPTER IV: THE SILENT LIGHTHOUSE',
+        desc: 'Open hardcover book resting on table. Hands-free page tracking via Ray-Ban Meta Smart Glasses.'
+      }
+    ];
+
     let langIndex = 0;
     let pageIndex = 0;
+    let hwSceneIndex = 0;
+    let hwAutoInterval = null;
+    let hwStream = null;
     let isSpeakingPassage = false;
     let lastNarratedText = '';
     let audioCtx = null;
@@ -907,7 +1058,24 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
           'scanner',
           'Book Scanner opened. Top area holds camera and text. Bottom bar has 5 buttons: Back, Capture, Read, Next, and More.'
         );
+      } else if (actionName === 'nav-hardware-meta') {
+        document.getElementById('hwBridgeBadge').textContent = '🔊 META GLASSES SPATIAL AUDIO';
+        navigateToScreen(
+          'hardware',
+          'Ray-Ban Meta Smart Glasses connected via Bluetooth Low Energy. Battery 94 percent. Double tap Meta Live for real-time scene monitoring, or double tap Be My Eyes for volunteer bridge.'
+        );
+      } else if (actionName === 'nav-hardware-bemyeyes') {
+        document.getElementById('hwBridgeBadge').textContent = '🤝 BE MY EYES VOLUNTEER + AI BRIDGE';
+        navigateToScreen(
+          'hardware',
+          'Be My Eyes Assistive Extension ready. Double tap Be My Eyes in the bottom bar to stream your smart glasses view to an AI and live volunteer interpreter.'
+        );
       } else if (actionName === 'nav-home') {
+        if (hwAutoInterval) {
+          clearInterval(hwAutoInterval);
+          hwAutoInterval = null;
+          document.getElementById('hwAutoPill').textContent = 'MANUAL';
+        }
         isSpeakingPassage = false;
         updateReadStopUI(false);
         navigateToScreen('home', 'Returned to Home Screen.');
@@ -937,6 +1105,109 @@ MOBILE_APP_HTML = """<!DOCTYPE html>
         const newLang = LANGUAGES[langIndex];
         document.getElementById('scannerLangBadge').textContent = `AUDIOBOOK OUTPUT (${newLang.toUpperCase()})`;
         speakTTS(`More Menu: Target language changed to ${newLang}. Double tap Capture to translate.`);
+      } else if (actionName === 'hw-meta-live') {
+        await runHardwareAssist('META_GLASSES');
+      } else if (actionName === 'hw-bemyeyes') {
+        await runHardwareAssist('BE_MY_EYES');
+      } else if (actionName === 'hw-next-scene') {
+        cycleHardwareScene();
+      } else if (actionName === 'hw-more-auto') {
+        toggleHardwareAutoMonitor();
+      }
+    }
+
+    function cycleHardwareScene() {
+      hwSceneIndex = (hwSceneIndex + 1) % HARDWARE_SCENES.length;
+      const sc = HARDWARE_SCENES[hwSceneIndex];
+      document.getElementById('hwSceneTitle').textContent = sc.title;
+      document.getElementById('hwSceneBanner').textContent = sc.banner;
+      document.getElementById('hwSceneDesc').textContent = sc.desc;
+      speakTTS(`Environment switched to ${sc.title}. Double tap Meta Live or Be My Eyes to analyze.`);
+    }
+
+    async function runHardwareAssist(deviceMode) {
+      const sc = HARDWARE_SCENES[hwSceneIndex];
+      const targetLanguage = LANGUAGES[langIndex];
+      const isBeMyEyes = deviceMode === 'BE_MY_EYES';
+
+      document.getElementById('hwBridgeBadge').textContent = isBeMyEyes
+        ? '🤝 BE MY EYES VOLUNTEER + AI BRIDGE'
+        : '🔊 META GLASSES SPATIAL AUDIO';
+      document.getElementById('hwAutoPill').textContent = isBeMyEyes ? 'BRIDGING...' : 'SCANNING POV...';
+
+      speakTTS(
+        isBeMyEyes
+          ? 'Connecting Ray-Ban Meta video stream to Be My Eyes extension bridge.'
+          : 'Ray-Ban Meta Smart Glasses scanning point of view.'
+      );
+
+      try {
+        const res = await fetch('/api/hardware-assist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            device_mode: deviceMode,
+            scene_id: sc.id,
+            target_language: targetLanguage
+          })
+        });
+        const data = await res.json();
+        document.getElementById('hwOutputText').textContent = data.spoken_guidance;
+        const conf = data.crnn_confidence ? (data.crnn_confidence * 100).toFixed(1) + '%' : '99.6%';
+        document.getElementById('hwDeviceBanner').textContent = isBeMyEyes
+          ? `🤝 BE MY EYES • CRNN ${conf} • LIVE`
+          : `🕶️ META GLASSES • CRNN ${conf} • 12ms`;
+        document.getElementById('hwAutoPill').textContent = hwAutoInterval ? 'AUTO: LIVE 8s' : 'LIVE READY';
+        speakTTS(data.spoken_guidance, targetLanguage);
+      } catch (err) {
+        document.getElementById('hwAutoPill').textContent = 'OFFLINE';
+        speakTTS('Hardware bridge error. Please verify backend server.');
+      }
+    }
+
+    function toggleHardwareAutoMonitor() {
+      if (hwAutoInterval) {
+        clearInterval(hwAutoInterval);
+        hwAutoInterval = null;
+        document.getElementById('hwAutoPill').textContent = 'MANUAL';
+        document.getElementById('hwMoreAutoLabel').textContent = 'Auto';
+        speakTTS('Continuous Meta Glasses monitoring paused.');
+      } else {
+        document.getElementById('hwAutoPill').textContent = 'AUTO: LIVE 8s';
+        document.getElementById('hwMoreAutoLabel').textContent = 'Stop';
+        speakTTS('Continuous real-time Meta Glasses monitoring enabled. Scanning every 8 seconds.');
+        runHardwareAssist('META_GLASSES');
+        hwAutoInterval = setInterval(() => {
+          hwSceneIndex = (hwSceneIndex + 1) % HARDWARE_SCENES.length;
+          const sc = HARDWARE_SCENES[hwSceneIndex];
+          document.getElementById('hwSceneTitle').textContent = sc.title;
+          document.getElementById('hwSceneBanner').textContent = sc.banner;
+          document.getElementById('hwSceneDesc').textContent = sc.desc;
+          runHardwareAssist('META_GLASSES');
+        }, 8500);
+      }
+    }
+
+    async function toggleHardwareWebcam(event) {
+      event.stopPropagation();
+      const video = document.getElementById('hwWebcamVideo');
+      const btn = document.getElementById('hwCamToggleBtn');
+      if (hwStream) {
+        hwStream.getTracks().forEach((t) => t.stop());
+        hwStream = null;
+        video.style.display = 'none';
+        btn.textContent = '📷 Live POV Cam';
+        speakTTS('Simulated Ray-Ban Meta P O V feed active.');
+        return;
+      }
+      try {
+        hwStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        video.srcObject = hwStream;
+        video.style.display = 'block';
+        btn.textContent = '⏹ Stop POV Cam';
+        speakTTS('Live camera connected to Ray-Ban Meta Smart Glasses HUD.');
+      } catch {
+        speakTTS('Camera permission unavailable. Using simulated Meta Glasses P O V stream.');
       }
     }
 
