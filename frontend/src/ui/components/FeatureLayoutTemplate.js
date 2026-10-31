@@ -1,70 +1,85 @@
 /**
  * Blind-ER Reusable Feature Wrapper: FeatureLayoutTemplate.js
- * Implements the standard 75% / 25% UI/UX Architecture for all core features:
- *   - Top/Middle Area (75% Hero Content): Dynamic feature area (Camera + Large Text).
- *   - Bottom Control Bar (25% Fixed): Edge-to-edge Flexbox row of massive
- *     `AccessibleTouchable` buttons.
- *   - Button Layout Logic:
- *       1. Far Left: "Back" (Returns to previous screen)
- *       2. Center Left: Contextual Action 1 (e.g., "Capture")
- *       3. Center Right: Contextual Action 2 (e.g., "Read" / "Stop")
- *       4. Far Right: "Next" (Moves to next step or page)
- *   - Overflow Rule: If `overflowActions` has items (>2 center actions needed),
- *     renders a 5th button labeled "More" that triggers an auditory menu.
- *     Never exceeds 5 buttons in the bottom bar.
+ * Hardened 75% / 25% Spatial Safety Architecture:
+ *   - Top/Middle Area (75% Hero Content): Wraps non-interactive background space
+ *     with an ambient auditory boundary cue ("Navigation area: 4 buttons located along the bottom edge.").
+ *   - Bottom Control Bar (25% Fixed): Edge-to-edge 4-button spatial grid (`gap: 0`,
+ *     `padding: 0`, `flex: 1`, `height: '100%'`, `width: '100%'`) eliminating all dead zones.
  */
 
 import React, { useState } from 'react';
-import { SafeAreaView, View, Text, StyleSheet } from 'react-native';
+import { SafeAreaView, View, Text, Pressable, StyleSheet } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import AccessibleTouchable, {
   speakAssistivePrompt,
 } from './AccessibleTouchable';
 
+export const BOUNDARY_CUE_MESSAGE =
+  'Navigation area: 4 buttons located along the bottom edge.';
+
 export default function FeatureLayoutTemplate({
   featureTitle,
   onBack,
-  primaryAction, // { label: 'Capture', hint: '...', onDoubleTap: fn, active?: bool }
-  secondaryAction, // { label: 'Read' | 'Stop', hint: '...', onDoubleTap: fn }
+  primaryAction,
+  secondaryAction,
   onNext,
   nextLabel = 'Next',
-  nextHint = 'Double tap to move to the next page.',
-  overflowActions = [], // Optional array of extra actions -> triggers 5th "More" button
+  nextHint = '',
+  overflowActions = [],
   children,
 }) {
   const [overflowIndex, setOverflowIndex] = useState(0);
 
+  const handleBoundaryPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    speakAssistivePrompt(BOUNDARY_CUE_MESSAGE);
+  };
+
   const handleMoreAuditoryMenu = () => {
     if (!overflowActions.length) return;
-    const currentOverflow = overflowActions[overflowIndex % overflowActions.length];
+    const currentOverflow =
+      overflowActions[overflowIndex % overflowActions.length];
     if (currentOverflow?.onExecute) {
       currentOverflow.onExecute();
     }
     setOverflowIndex((prev) => (prev + 1) % overflowActions.length);
   };
 
-  const hasOverflow = Array.isArray(overflowActions) && overflowActions.length > 0;
+  const hasOverflow =
+    Array.isArray(overflowActions) && overflowActions.length > 0;
 
   return (
     <SafeAreaView style={styles.container}>
       {/* ================================================================= */}
-      {/* TOP / MIDDLE AREA (75% HERO CONTENT)                              */}
+      {/* TOP / MIDDLE AREA (75% HERO CONTENT + BOUNDARY SAFETY CUE)        */}
       {/* ================================================================= */}
-      <View style={styles.heroContentArea}>{children}</View>
+      <Pressable
+        testID="spatial-boundary-area"
+        accessible={true}
+        accessibilityRole="none"
+        accessibilityLabel="Non-interactive upper area"
+        onPress={handleBoundaryPress}
+        style={styles.heroContentArea}
+      >
+        {children}
+      </Pressable>
 
       {/* ================================================================= */}
-      {/* BOTTOM CONTROL BAR (25% FIXED, MASSIVE FLEXBOX BUTTONS, MAX 5)    */}
+      {/* BOTTOM CONTROL BAR (25% FIXED, ZERO-GAP 4-BUTTON SPATIAL BAR)     */}
       {/* ================================================================= */}
       <View
+        testID="bottom-control-bar"
         style={styles.bottomControlBar}
         accessible={true}
         accessibilityRole="menubar"
         accessibilityLabel={`${featureTitle || 'Feature'} Bottom Control Bar`}
       >
-        {/* Button 1 (Far Left): Back / Before */}
+        {/* Button 1 (Far Left): Back */}
         <AccessibleTouchable
+          testID="bar-btn-back"
           label="Back"
-          ttsHint="Double tap to return to the previous screen."
-          confirmSpeech="Going back."
+          ttsHint=""
+          confirmSpeech="Back."
           onDoubleTap={onBack}
           style={[styles.barButton, styles.navButton]}
         >
@@ -74,12 +89,11 @@ export default function FeatureLayoutTemplate({
           <Text style={styles.buttonLabelWhite}>Back</Text>
         </AccessibleTouchable>
 
-        {/* Button 2 (Center Left): Contextual Action 1 (e.g. Capture) */}
+        {/* Button 2 (Center Left): Primary Action */}
         <AccessibleTouchable
-          label={primaryAction?.label || 'Action 1'}
-          ttsHint={
-            primaryAction?.hint || 'Double tap to trigger primary feature action.'
-          }
+          testID="bar-btn-primary"
+          label={primaryAction?.label || 'Capture'}
+          ttsHint={primaryAction?.hint || ''}
           confirmSpeech={primaryAction?.confirmSpeech}
           onDoubleTap={primaryAction?.onDoubleTap}
           style={[styles.barButton, styles.primaryActionButton]}
@@ -92,13 +106,11 @@ export default function FeatureLayoutTemplate({
           </Text>
         </AccessibleTouchable>
 
-        {/* Button 3 (Center Right): Contextual Action 2 (e.g. Read / Stop) */}
+        {/* Button 3 (Center Right): Secondary Action */}
         <AccessibleTouchable
-          label={secondaryAction?.label || 'Action 2'}
-          ttsHint={
-            secondaryAction?.hint ||
-            'Double tap to trigger secondary feature action.'
-          }
+          testID="bar-btn-secondary"
+          label={secondaryAction?.label || 'Read'}
+          ttsHint={secondaryAction?.hint || ''}
           confirmSpeech={secondaryAction?.confirmSpeech}
           onDoubleTap={secondaryAction?.onDoubleTap}
           style={[styles.barButton, styles.secondaryActionButton]}
@@ -111,11 +123,12 @@ export default function FeatureLayoutTemplate({
           </Text>
         </AccessibleTouchable>
 
-        {/* Button 4: Next */}
+        {/* Button 4 (Far Right): Next */}
         <AccessibleTouchable
+          testID="bar-btn-next"
           label={nextLabel}
           ttsHint={nextHint}
-          confirmSpeech="Moving to next page."
+          confirmSpeech="Next."
           onDoubleTap={onNext}
           style={[styles.barButton, styles.navButton]}
         >
@@ -125,13 +138,11 @@ export default function FeatureLayoutTemplate({
           <Text style={styles.buttonLabelWhite}>{nextLabel}</Text>
         </AccessibleTouchable>
 
-        {/* Button 5 (Dynamic Overflow Rule — Never Exceeds 5 Buttons) */}
         {hasOverflow && (
           <AccessibleTouchable
-            label="More Options"
-            ttsHint={`Auditory menu for additional settings such as ${overflowActions
-              .map((a) => a.label)
-              .join(', ')}. Double tap to cycle option.`}
+            testID="bar-btn-more"
+            label="More"
+            ttsHint=""
             onDoubleTap={handleMoreAuditoryMenu}
             style={[styles.barButton, styles.moreOverflowButton]}
           >
@@ -152,42 +163,46 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   heroContentArea: {
-    flex: 7.5, // Top 75% of screen
+    flex: 7.5,
     width: '100%',
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
   },
   bottomControlBar: {
-    flex: 2.5, // Bottom 25% of screen
+    flex: 2.5,
     width: '100%',
+    height: '100%',
     flexDirection: 'row',
     backgroundColor: '#000000',
-    borderTopWidth: 3,
+    borderTopWidth: 2,
     borderTopColor: '#FFD600',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    gap: 8,
+    padding: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    gap: 0,
   },
   barButton: {
-    flex: 1, // Massive Flexbox hitboxes filling the entire bottom bar evenly
+    flex: 1,
+    width: '100%',
     height: '100%',
-    borderRadius: 8,
-    borderWidth: 3,
+    margin: 0,
+    borderRadius: 0,
+    borderWidth: 1,
     paddingHorizontal: 4,
     justifyContent: 'center',
     alignItems: 'center',
   },
   navButton: {
-    backgroundColor: '#1D1D1F',
-    borderColor: '#FFFFFF',
+    backgroundColor: '#141416',
+    borderColor: '#26262A',
   },
   primaryActionButton: {
     backgroundColor: '#FFD600',
-    borderColor: '#FFFFFF',
+    borderColor: '#FFD600',
   },
   secondaryActionButton: {
-    backgroundColor: '#1D1D1F',
+    backgroundColor: '#141416',
     borderColor: '#FFD600',
   },
   moreOverflowButton: {
@@ -196,33 +211,32 @@ const styles = StyleSheet.create({
   },
   buttonIcon: {
     color: '#FFFFFF',
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   buttonIconDark: {
     color: '#000000',
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   buttonLabelWhite: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     textAlign: 'center',
   },
   buttonLabelDark: {
     color: '#000000',
-    fontSize: 19,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '800',
     textAlign: 'center',
   },
   buttonLabelYellow: {
     color: '#FFD600',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     textAlign: 'center',
   },
 });
-

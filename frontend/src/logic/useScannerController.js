@@ -1,9 +1,11 @@
 /**
- * Blind-ER Scanner Controller Hook (CORE LOGIC - DO NOT EDIT FOR STYLING)
- * Manages the voice-first gesture responder state machine:
- *   - Single Tap Anywhere: Capture page -> CRNN Extract -> LLM Contextualize -> TTS Narrate
- *   - Double Tap Anywhere: Stop / Replay current audiobook narration
- *   - Long Press Anywhere: Cycle target narration language with auditory confirmation
+ * Blind-ER Scanner Controller Hook
+ * Hardened for Accessibility Chaos QA + True Sentence-Level Pause/Resume:
+ *   - Camera permission rejection -> Audible prompt guiding user to system settings.
+ *   - Malformed / empty / low-confidence scan response -> Speaks:
+ *     "No book text detected. Align camera and try again."
+ *   - Strict 8-second network timeout -> Immediate spoken timeout error handling.
+ *   - True Pause & Resume -> Pausing preserves sentence index and resumes without restarting.
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -13,41 +15,93 @@ import { extractTextWithCrnn, contextualizeWithLlm } from '../api/scannerApi';
 import {
   announceStateForAccessibility,
   speakAudiobookPassage,
+  pauseSpeech,
+  resumeSpeech,
+  replayLastSentence,
+  restartPassage,
   stopSpeech,
+  triggerTtsHapticFallback,
 } from './ttsService';
 import { ENV } from '../config/env';
 
 const SUPPORTED_LANGUAGES = ['English', 'Spanish', 'French', 'Malay', 'Mandarin'];
-const DOUBLE_TAP_DELAY_MS = 320;
+const MIN_CONFIDENCE_THRESHOLD = 0.5;
+
+export const NO_TEXT_DETECTED_MESSAGE =
+  'No book text detected. Align camera and try again.';
+export const CAMERA_PERMISSION_DENIED_MESSAGE =
+  'Camera permission denied. Please enable camera access in system settings.';
+export const NETWORK_TIMEOUT_MESSAGE =
+  'Network timeout. Please check your connection and try again.';
 
 export function useScannerController() {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [status, setStatus] = useState('IDLE');
-  const [statusMessage, setStatusMessage] = useState(
-    'Ready to scan. Single tap anywhere to scan page. Double tap to pause or replay. Long press to switch language.'
-  );
+  const [statusMessage, setStatusMessage] = useState('Ready to scan.');
   const [rawOcrText, setRawOcrText] = useState('');
   const [narratedText, setNarratedText] = useState('');
-  const [targetLanguage, setTargetLanguage] = useState(ENV.DEFAULT_TARGET_LANGUAGE);
+  const [targetLanguage, setTargetLanguage] = useState(
+    ENV.DEFAULT_TARGET_LANGUAGE
+  );
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const cameraRef = useRef(null);
-  const lastTapTimestampRef = useRef(0);
   const singleTapTimeoutRef = useRef(null);
 
-  // Request camera permission and greet user via TalkBack/TTS on mount
   useEffect(() => {
+    let isMounted = true;
+
     async function initializeScanner() {
-      if (!cameraPermission?.granted) {
-        await requestCameraPermission();
+      try {
+        if (cameraPermission && cameraPermission.granted === false) {
+          const permResult = requestCameraPermission
+            ? await requestCameraPermission()
+            : cameraPermission;
+
+          if (!permResult?.granted) {
+            if (!isMounted) return;
+            setStatus('PERMISSION_DENIED');
+            setStatusMessage(CAMERA_PERMISSION_DENIED_MESSAGE);
+            await Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Warning
+            ).catch(() => {});
+            await announceStateForAccessibility(
+              CAMERA_PERMISSION_DENIED_MESSAGE
+            );
+            return;
+          }
+        } else if (!cameraPermission && requestCameraPermission) {
+          const permResult = await requestCameraPermission();
+          if (permResult && permResult.granted === false) {
+            if (!isMounted) return;
+            setStatus('PERMISSION_DENIED');
+            setStatusMessage(CAMERA_PERMISSION_DENIED_MESSAGE);
+            await Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Warning
+            ).catch(() => {});
+            await announceStateForAccessibility(
+              CAMERA_PERMISSION_DENIED_MESSAGE
+            );
+            return;
+          }
+        }
+
+        if (isMounted) {
+          announceStateForAccessibility('Scanner ready.');
+        }
+      } catch {
+        if (isMounted) {
+          setStatus('PERMISSION_DENIED');
+          setStatusMessage(CAMERA_PERMISSION_DENIED_MESSAGE);
+          announceStateForAccessibility(CAMERA_PERMISSION_DENIED_MESSAGE);
+        }
       }
-      announceStateForAccessibility(
-        'Blind-ER Book Scanner ready. Single tap anywhere on the screen to capture a page. Double tap to pause or replay audio. Long press to change translation language.'
-      );
     }
+
     initializeScanner();
 
     return () => {
+      isMounted = false;
       if (singleTapTimeoutRef.current) {
         clearTimeout(singleTapTimeoutRef.current);
       }
@@ -56,24 +110,41 @@ export function useScannerController() {
   }, []);
 
   /**
-   * Executes the full 3-step AI pipeline (CRNN -> Gemini LLM -> Native TTS)
+   * Executes the full scan-to-voice pipeline with strict validation & timeout handling.
    */
   const executeScanPipeline = useCallback(async () => {
-    if (status === 'CAPTURING' || status === 'EXTRACTING' || status === 'CONTEXTUALIZING') {
-      announceStateForAccessibility('Scan already in progress. Please wait.');
+    if (
+      status === 'CAPTURING' ||
+      status === 'EXTRACTING' ||
+      status === 'CONTEXTUALIZING'
+    ) {
       return;
+    }
+
+    if (cameraPermission && cameraPermission.granted === false) {
+      const retryPerm = requestCameraPermission
+        ? await requestCameraPermission()
+        : null;
+      if (!retryPerm?.granted) {
+        setStatus('PERMISSION_DENIED');
+        setStatusMessage(CAMERA_PERMISSION_DENIED_MESSAGE);
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Error
+        ).catch(() => {});
+        await announceStateForAccessibility(CAMERA_PERMISSION_DENIED_MESSAGE);
+        return;
+      }
     }
 
     try {
       stopSpeech();
       setIsSpeaking(false);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
+        () => {}
+      );
 
-      // Step 0: Capture Document Image
       setStatus('CAPTURING');
-      const captureMsg = 'Capturing book page. Hold steady.';
-      setStatusMessage(captureMsg);
-      announceStateForAccessibility(captureMsg);
+      setStatusMessage('Scanning page...');
 
       let imageUri = 'mock://captured-book-page.jpg';
       if (cameraRef.current && cameraPermission?.granted) {
@@ -86,133 +157,249 @@ export function useScannerController() {
             imageUri = photo.uri;
           }
         } catch {
-          // Allows testing in emulators without physical camera feed
+          // Fallback to simulated page uri in test/emulator environments
         }
       }
 
-      // Step 1: CRNN Raw Text Extraction
       setStatus('EXTRACTING');
-      const extractMsg = 'Extracting text with CRNN scanner...';
-      setStatusMessage(extractMsg);
-      announceStateForAccessibility(extractMsg);
+      const scanResult = await extractTextWithCrnn(imageUri);
 
-      const crnnResult = await extractTextWithCrnn(imageUri);
-      setRawOcrText(crnnResult.raw_text);
+      const rawText =
+        typeof scanResult?.raw_text === 'string'
+          ? scanResult.raw_text.trim()
+          : '';
+      const confidence =
+        typeof scanResult?.confidence === 'number' ? scanResult.confidence : 1.0;
 
-      // Step 2: Gemini LLM Contextualization & Translation
+      if (!rawText || confidence < MIN_CONFIDENCE_THRESHOLD) {
+        setStatus('IDLE');
+        setStatusMessage(NO_TEXT_DETECTED_MESSAGE);
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Warning
+        ).catch(() => {});
+        await announceStateForAccessibility(NO_TEXT_DETECTED_MESSAGE);
+        return;
+      }
+
+      setRawOcrText(rawText);
+
       setStatus('CONTEXTUALIZING');
-      const llmMsg = `Contextualizing and translating into ${targetLanguage}...`;
-      setStatusMessage(llmMsg);
-      announceStateForAccessibility(llmMsg);
+      const llmResult = await contextualizeWithLlm(rawText, targetLanguage);
+      const cleanNarration =
+        typeof llmResult?.narrated_text === 'string'
+          ? llmResult.narrated_text.trim()
+          : '';
 
-      const llmResult = await contextualizeWithLlm(
-        crnnResult.raw_text,
-        targetLanguage
+      if (!cleanNarration) {
+        setStatus('IDLE');
+        setStatusMessage(NO_TEXT_DETECTED_MESSAGE);
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Warning
+        ).catch(() => {});
+        await announceStateForAccessibility(NO_TEXT_DETECTED_MESSAGE);
+        return;
+      }
+
+      setNarratedText(cleanNarration);
+
+      await Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Success
+      ).catch(() => {});
+
+      // Per user requirement: Ask before start reading
+      setStatus('AWAITING_CONFIRMATION');
+      setStatusMessage('Page text detected. Ready to read.');
+      setIsSpeaking(false);
+      setIsPaused(false);
+
+      await announceStateForAccessibility(
+        'Page text detected. Would you like me to start reading? Double-tap Read to start, or double-tap Cancel.'
       );
-      setNarratedText(llmResult.narrated_text);
-
-      // Step 3: Native Audiobook TTS Playback
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setStatus('SPEAKING');
-      setStatusMessage(`Narrating in ${targetLanguage}. Double tap anywhere to pause.`);
-      setIsSpeaking(true);
-
-      speakAudiobookPassage({
-        text: llmResult.narrated_text,
-        targetLanguage,
-        onStart: () => setIsSpeaking(true),
-        onDone: () => {
-          setIsSpeaking(false);
-          setStatus('IDLE');
-          setStatusMessage('Narration finished. Single tap to scan next page, or double tap to replay.');
-        },
-        onStopped: () => {
-          setIsSpeaking(false);
-        },
-        onError: () => {
-          setIsSpeaking(false);
-          setStatus('ERROR');
-        },
-      });
     } catch (error) {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      await Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Error
+      ).catch(() => {});
       setStatus('ERROR');
-      const errMsg = `Scan failed. Please check backend connection. ${error.message || ''}`;
+
+      const isTimeout =
+        error?.code === 'ETIMEDOUT' ||
+        /timed?\s*out/i.test(error?.message || '');
+
+      const errMsg = isTimeout
+        ? NETWORK_TIMEOUT_MESSAGE
+        : 'Connection error. Please try again.';
+
       setStatusMessage(errMsg);
-      announceStateForAccessibility(errMsg);
+      await announceStateForAccessibility(errMsg);
     }
-  }, [cameraPermission, status, targetLanguage]);
+  }, [cameraPermission, requestCameraPermission, status, targetLanguage]);
+
+  const confirmStartReading = useCallback(() => {
+    if (!narratedText) return;
+    setStatus('SPEAKING');
+    setStatusMessage(`Reading in ${targetLanguage}`);
+    setIsSpeaking(true);
+    setIsPaused(false);
+
+    speakAudiobookPassage({
+      text: narratedText,
+      targetLanguage,
+      resume: false,
+      onStart: () => setIsSpeaking(true),
+      onDone: () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        setStatus('IDLE');
+        setStatusMessage('Finished reading.');
+      },
+      onStopped: () => {
+        setIsSpeaking(false);
+      },
+      onError: () => {
+        setIsSpeaking(false);
+        setStatus('ERROR');
+        triggerTtsHapticFallback();
+      },
+    });
+  }, [narratedText, targetLanguage]);
+
+  const cancelReading = useCallback(async () => {
+    stopSpeech();
+    setIsSpeaking(false);
+    setIsPaused(false);
+    setStatus('IDLE');
+    setStatusMessage('Reading cancelled.');
+    await announceStateForAccessibility('Reading cancelled. Ready to scan.');
+  }, []);
+
+  const resumeCurrent = useCallback(() => {
+    if (!narratedText) return;
+    setStatus('SPEAKING');
+    setStatusMessage(`Resuming in ${targetLanguage}`);
+    setIsSpeaking(true);
+    setIsPaused(false);
+    resumeSpeech({
+      onStart: () => setIsSpeaking(true),
+      onDone: () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        setStatus('IDLE');
+        setStatusMessage('Finished reading.');
+      },
+      onStopped: () => setIsSpeaking(false),
+      onError: () => {
+        setIsSpeaking(false);
+        triggerTtsHapticFallback();
+      },
+    });
+  }, [narratedText, targetLanguage]);
+
+  const handleReplayLastSentence = useCallback(() => {
+    if (!narratedText) return;
+    setStatus('SPEAKING');
+    setStatusMessage('Replaying last sentence');
+    setIsSpeaking(true);
+    setIsPaused(false);
+    replayLastSentence({
+      onStart: () => setIsSpeaking(true),
+      onDone: () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        setStatus('IDLE');
+        setStatusMessage('Finished reading.');
+      },
+      onStopped: () => setIsSpeaking(false),
+      onError: () => {
+        setIsSpeaking(false);
+        triggerTtsHapticFallback();
+      },
+    });
+  }, [narratedText]);
+
+  const handleRestartFromStart = useCallback(() => {
+    if (!narratedText) return;
+    setStatus('SPEAKING');
+    setStatusMessage('Restarting from beginning');
+    setIsSpeaking(true);
+    setIsPaused(false);
+    restartPassage({
+      onStart: () => setIsSpeaking(true),
+      onDone: () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        setStatus('IDLE');
+        setStatusMessage('Finished reading.');
+      },
+      onStopped: () => setIsSpeaking(false),
+      onError: () => {
+        setIsSpeaking(false);
+        triggerTtsHapticFallback();
+      },
+    });
+  }, [narratedText]);
 
   /**
-   * Double-Tap Handler: Pauses active narration OR replays the last narrated passage.
+   * True Pause / Resume Handler:
+   * - While speaking: pauses at the current sentence and asks the user for action.
+   * - While paused: resumes from the paused sentence instead of restarting.
    */
   const handleDoubleTap = useCallback(async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
+      () => {}
+    );
 
     if (isSpeaking) {
-      stopSpeech();
+      pauseSpeech();
       setIsSpeaking(false);
-      setStatus('PAUSED');
-      const pauseMsg = 'Narration paused. Double tap to replay, or single tap to scan a new page.';
-      setStatusMessage(pauseMsg);
-      announceStateForAccessibility(pauseMsg);
+      setIsPaused(true);
+      setStatus('PAUSED_MENU');
+      setStatusMessage('Paused.');
+      await announceStateForAccessibility(
+        'Paused. Double-tap Resume to continue, double-tap Replay to reread the last sentence, or double-tap Restart to start from the page beginning.'
+      );
+      return;
+    }
+
+    if (status === 'AWAITING_CONFIRMATION') {
+      confirmStartReading();
+      return;
+    }
+
+    if (status === 'PAUSED_MENU' || status === 'PAUSED') {
+      resumeCurrent();
       return;
     }
 
     if (narratedText) {
-      setStatus('SPEAKING');
-      setStatusMessage(`Replaying narration in ${targetLanguage}.`);
-      setIsSpeaking(true);
-      speakAudiobookPassage({
-        text: narratedText,
-        targetLanguage,
-        onStart: () => setIsSpeaking(true),
-        onDone: () => {
-          setIsSpeaking(false);
-          setStatus('IDLE');
-        },
-        onStopped: () => setIsSpeaking(false),
-        onError: () => setIsSpeaking(false),
-      });
+      confirmStartReading();
     } else {
-      announceStateForAccessibility('No passage scanned yet. Single tap anywhere to scan a book page.');
+      announceStateForAccessibility('Tap Capture to scan a page.');
     }
-  }, [isSpeaking, narratedText, targetLanguage]);
+  }, [
+    confirmStartReading,
+    isSpeaking,
+    narratedText,
+    resumeCurrent,
+    status,
+  ]);
 
-  /**
-   * Unified Tap Dispatcher distinguishing Single Tap vs. Double Tap anywhere on screen.
-   */
   const handleScreenTap = useCallback(() => {
-    const now = Date.now();
-    if (now - lastTapTimestampRef.current < DOUBLE_TAP_DELAY_MS) {
-      if (singleTapTimeoutRef.current) {
-        clearTimeout(singleTapTimeoutRef.current);
-        singleTapTimeoutRef.current = null;
-      }
-      lastTapTimestampRef.current = 0;
-      handleDoubleTap();
-    } else {
-      lastTapTimestampRef.current = now;
-      singleTapTimeoutRef.current = setTimeout(() => {
-        executeScanPipeline();
-        singleTapTimeoutRef.current = null;
-      }, DOUBLE_TAP_DELAY_MS);
-    }
-  }, [executeScanPipeline, handleDoubleTap]);
+    executeScanPipeline();
+  }, [executeScanPipeline]);
 
-  /**
-   * Long-Press Handler: Cycles target language with haptic + spoken confirmation.
-   */
   const handleLongPress = useCallback(async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(
+      () => {}
+    );
     stopSpeech();
     setIsSpeaking(false);
 
     setTargetLanguage((prevLang) => {
       const nextIndex =
-        (SUPPORTED_LANGUAGES.indexOf(prevLang) + 1) % SUPPORTED_LANGUAGES.length;
+        (SUPPORTED_LANGUAGES.indexOf(prevLang) + 1) %
+        SUPPORTED_LANGUAGES.length;
       const nextLang = SUPPORTED_LANGUAGES[nextIndex];
-      const msg = `Target audiobook language set to ${nextLang}. Single tap to scan.`;
+      const msg = `Language: ${nextLang}.`;
       setStatusMessage(msg);
       announceStateForAccessibility(msg);
       return nextLang;
@@ -229,9 +416,14 @@ export function useScannerController() {
     narratedText,
     targetLanguage,
     isSpeaking,
+    isPaused: status === 'PAUSED' || status === 'PAUSED_MENU',
+    confirmStartReading,
+    cancelReading,
+    resumeCurrent,
+    replayLastSentence: handleReplayLastSentence,
+    restartFromBeginning: handleRestartFromStart,
     onSingleTap: handleScreenTap,
     onDoubleTap: handleDoubleTap,
     onLongPress: handleLongPress,
   };
 }
-

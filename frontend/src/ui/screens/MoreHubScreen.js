@@ -1,6 +1,6 @@
 /**
  * Blind-ER Screen 4 & 5: MoreHubScreen.js
- * Houses the Saved Audiobook Library + Assistive Extensions (Ray-Ban Meta Smart Glasses & Be My Eyes Bridge).
+ * Houses the Saved Audiobook Library + Smart Wearable Extensions with true sentence-level Pause & Resume.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -9,21 +9,26 @@ import FeatureLayoutTemplate from '../components/FeatureLayoutTemplate';
 import AccessibleTouchable, {
   speakAssistivePrompt,
 } from '../components/AccessibleTouchable';
+import {
+  speakAudiobookPassage,
+  pauseSpeech,
+  stopSpeech,
+} from '../../logic/ttsService';
 
 const SAVED_AUDIOBOOKS = [
   {
     title: 'The Silent Lighthouse',
-    chapter: 'Chapter IV • Scanned via CRNN (99.62%)',
-    text: 'Chapter Four: The Silent Lighthouse. The wind howled across the jagged cliffs of Northumberland, carrying with it the bitter scent of salt and an approaching storm.',
+    chapter: 'Chapter IV • Saved Audiobook',
+    text: 'Chapter Four: The Silent Lighthouse. The wind howled across the jagged cliffs of Northumberland, carrying with it the bitter scent of salt and an approaching storm. Elara clutched her weathered lantern tighter.',
   },
   {
     title: 'Beneath Northern Stars',
-    chapter: 'Chapter V • Scanned via CRNN (99.62%)',
+    chapter: 'Chapter V • Saved Audiobook',
     text: 'Chapter Five: Beneath Northern Stars. Elara raised her lantern toward the ancient stone tower as the distant bell echoed three times across the freezing bay.',
   },
   {
     title: 'Designing Without Sight',
-    chapter: 'Chapter I • Tactile & Voice-First Architecture',
+    chapter: 'Chapter I • Voice-First Edition',
     text: 'Chapter One: Designing Without Sight. True accessibility begins when every action on a screen can be discovered safely by touch and confirmed clearly by voice.',
   },
 ];
@@ -31,61 +36,78 @@ const SAVED_AUDIOBOOKS = [
 export default function MoreHubScreen({ navigation }) {
   const [bookIdx, setBookIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   const currentBook = SAVED_AUDIOBOOKS[bookIdx];
 
   useEffect(() => {
-    speakAssistivePrompt(
-      'More Hub opened. Contains your saved Audiobook Library plus Ray-Ban Meta Smart Glasses and Be My Eyes extensions.'
-    );
+    speakAssistivePrompt('Library and Wearables.');
+    return () => {
+      pauseSpeech();
+    };
   }, []);
 
   const togglePlayBook = () => {
     if (isPlaying) {
+      pauseSpeech();
       setIsPlaying(false);
-      speakAssistivePrompt('Audiobook paused.');
+      setIsPaused(true);
     } else {
+      const resumeCurrent = isPaused;
       setIsPlaying(true);
-      speakAssistivePrompt(`${currentBook.title}. ${currentBook.text}`, {
-        onDone: () => setIsPlaying(false),
+      setIsPaused(false);
+      speakAudiobookPassage({
+        text: `${currentBook.title}. ${currentBook.text}`,
+        targetLanguage: 'English',
+        resume: resumeCurrent,
+        onDone: () => {
+          setIsPlaying(false);
+          setIsPaused(false);
+        },
       });
     }
   };
 
   const handleNextBook = () => {
+    stopSpeech();
     const next = (bookIdx + 1) % SAVED_AUDIOBOOKS.length;
     setBookIdx(next);
     setIsPlaying(false);
-    speakAssistivePrompt(
-      `Selected Book ${next + 1}: ${SAVED_AUDIOBOOKS[next].title}.`
-    );
+    setIsPaused(false);
+    speakAssistivePrompt(SAVED_AUDIOBOOKS[next].title);
   };
+
+  const primaryLabel = isPlaying ? 'Pause' : isPaused ? 'Resume' : 'Play';
 
   return (
     <FeatureLayoutTemplate
-      featureTitle="More Hub: Audiobook Library and Extensions"
+      featureTitle="Library and Extensions"
       onBack={() => navigation?.navigate?.('Home')}
       primaryAction={{
-        label: isPlaying ? 'Pause' : 'Play Book',
+        label: primaryLabel,
         icon: isPlaying ? '⏸' : '▶',
-        hint: 'Tap again to play or pause the current audiobook in your library.',
+        hint: isPlaying
+          ? 'Double tap to pause.'
+          : isPaused
+            ? 'Double tap to resume.'
+            : 'Double tap to play.',
         onDoubleTap: togglePlayBook,
       }}
       secondaryAction={{
-        label: 'Extensions',
+        label: 'Glasses',
         icon: '🕶️',
-        hint: 'Tap again to open Ray-Ban Meta Smart Glasses and Be My Eyes extensions.',
+        hint: 'Double tap for smart glasses.',
         onDoubleTap: () => navigation?.navigate?.('HardwareHub'),
       }}
-      nextLabel="Next Book"
-      nextHint="Tap again to switch to the next saved audiobook in your library."
+      nextLabel="Next"
+      nextHint="Double tap for next book."
       onNext={handleNextBook}
     >
       <View style={styles.wrapper}>
         {/* Audiobook Library Player Card */}
         <AccessibleTouchable
-          label={`Audiobook Library: ${currentBook.title}, ${currentBook.chapter}`}
-          ttsHint="Tap again to play or pause this audiobook chapter."
+          label={currentBook.title}
+          ttsHint="Double tap to play or pause."
           onDoubleTap={togglePlayBook}
           style={styles.libraryHeroCard}
         >
@@ -96,7 +118,7 @@ export default function MoreHubScreen({ navigation }) {
           <Text style={styles.bookSubDark}>{currentBook.chapter}</Text>
         </AccessibleTouchable>
 
-        {/* Chapter Transcript & Extensions Links */}
+        {/* Chapter Transcript */}
         <View style={styles.readerCard}>
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={styles.chapterBody}>{currentBook.text}</Text>
@@ -104,13 +126,13 @@ export default function MoreHubScreen({ navigation }) {
         </View>
 
         <AccessibleTouchable
-          label="Assistive Extensions: Ray-Ban Meta Smart Glasses and Be My Eyes Bridge"
-          ttsHint="Tap again to open wearable and volunteer extensions."
+          label="Smart Glasses and Be My Eyes"
+          ttsHint="Double tap to open."
           onDoubleTap={() => navigation?.navigate?.('HardwareHub')}
           style={styles.extensionRowCard}
         >
           <Text style={styles.extTitle}>
-            🕶️ Meta Glasses & 🤝 Be My Eyes Extensions →
+            🕶️ Smart Glasses & 🤝 Be My Eyes →
           </Text>
         </AccessibleTouchable>
       </View>
@@ -184,4 +206,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-

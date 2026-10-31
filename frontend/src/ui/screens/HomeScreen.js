@@ -1,25 +1,25 @@
 /**
  * Blind-ER Screen 2: HomeScreen.js
- * Minimalist 60% / 40% Layout matching the Reference Design:
- *   - Top 60% Hero Element: Solid Yellow (#F5C518) "Book Scanner / AI Audiobook"
- *   - Bottom 40% Secondary 2x2 Grid:
- *       1. Auditory Games (Pitch, Notes, Chords, Audio Match)
- *       2. More (Audiobook Library + Extensions: Meta Glasses & Be My Eyes)
- *       3. Settings (Volume, Tone, Voice, Language, Check for Updates)
- *       4. Back to Setup (Returns to Visual Impairment Onboarding)
+ * Minimalist Layout with Book Scanner, Gemini Camera AI Mode, and AI Voice Mode:
+ *   - Hero 1: Book Scanner (Turn pages into audiobooks)
+ *   - Hero 2: Camera AI ("What is in front of me?" powered by Gemini Vision)
+ *   - Bottom 2x2 Grid: AI Voice Mode | Library & More | Auditory Games | Settings
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, SafeAreaView, StatusBar, StyleSheet } from 'react-native';
+import { useMicrophonePermissions } from 'expo-camera';
 import AccessibleTouchable, {
   speakAssistivePrompt,
 } from '../components/AccessibleTouchable';
+import { sendVoiceCommandToGemini } from '../../api/scannerApi';
 
 export default function HomeScreen({ navigation }) {
+  const [aiVoiceActive, setAiVoiceActive] = useState(false);
+  const [micPermission, requestMicPermission] = useMicrophonePermissions();
+
   useEffect(() => {
-    speakAssistivePrompt(
-      'Home Screen. Top 60 percent is Book Scanner. Bottom grid has Auditory Games, More Library and Extensions, Settings, and Back to Setup.'
-    );
+    speakAssistivePrompt('Home.');
   }, []);
 
   const navigateWithVoice = (targetScreen, spokenMessage) => {
@@ -29,89 +29,127 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  const toggleAiVoiceMode = async () => {
+    if (!aiVoiceActive) {
+      // Prompt for native microphone permission on mobile if not already granted
+      if (!micPermission?.granted) {
+        const permResult = await requestMicPermission();
+        if (!permResult?.granted) {
+          speakAssistivePrompt(
+            'Microphone permission is required for AI Voice Mode. Please enable microphone access in settings.'
+          );
+          return;
+        }
+      }
+      setAiVoiceActive(true);
+      speakAssistivePrompt(
+        'AI Voice Mode active. Say open camera, scan book, library, or settings.'
+      );
+      try {
+        await sendVoiceCommandToGemini('help', 'home', 'English');
+      } catch {
+        // Offline voice command fallback
+      }
+    } else {
+      setAiVoiceActive(false);
+      speakAssistivePrompt('AI Voice Mode off.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
       <View style={styles.screenContainer}>
-        {/* Top 60%: Massive Solid Yellow Book Scanner Button */}
-        <View style={styles.heroTop60}>
+        {/* Primary Hero: Book Scanner */}
+        <View style={styles.heroScannerBox}>
           <AccessibleTouchable
-            label="Book Scanner, AI Audiobook"
-            ttsHint="Primary AI tool. Scans physical book pages into expressive audiobooks. Tap again to open camera."
+            testID="home-book-scanner-btn"
+            label="Book Scanner"
+            ttsHint="Double tap to open."
             onDoubleTap={() =>
-              navigateWithVoice('BookScanner', 'Opening Book Scanner.')
+              navigateWithVoice('BookScanner', 'Book Scanner.')
             }
             style={styles.heroScannerButton}
           >
             <Text style={styles.heroLabel}>Book Scanner</Text>
-            <Text style={styles.heroLabel}>AI Audiobook</Text>
-            <Text style={styles.heroSubtext}>
-              1st Tap: Hear • 2nd Tap: Open
-            </Text>
+            <Text style={styles.heroSubtext}>Turn pages into audiobooks</Text>
           </AccessibleTouchable>
         </View>
 
-        {/* Bottom 40%: 2x2 Grid of Secondary Features */}
-        <View style={styles.secondaryBottom40}>
+        {/* Secondary Hero: Gemini Camera AI ("What is in front of me?") */}
+        <View style={styles.cameraAiBox}>
+          <AccessibleTouchable
+            testID="home-camera-ai-btn"
+            label="Camera AI: What is in front of me"
+            ttsHint="Double tap to describe surroundings."
+            onDoubleTap={() =>
+              navigateWithVoice('CameraAssistant', 'Camera AI.')
+            }
+            style={styles.cameraAiButton}
+          >
+            <View style={styles.cameraOrb} />
+            <View>
+              <Text style={styles.cameraAiTitle}>Camera AI</Text>
+              <Text style={styles.cameraAiSub}>What is in front of me?</Text>
+            </View>
+          </AccessibleTouchable>
+        </View>
+
+        {/* Bottom 2x2 Grid: AI Voice Mode | Library | Games | Settings */}
+        <View style={styles.secondaryBottomGrid}>
           <View style={styles.gridRow}>
             <AccessibleTouchable
-              label="Auditory Games"
-              ttsHint="Play Pitch Training, Note Recognising, Chord Identifying, and Audio Pattern Match. Tap again to open."
-              onDoubleTap={() =>
-                navigateWithVoice('AuditoryGames', 'Opening Auditory Games Suite.')
-              }
-              style={styles.secondaryTile}
+              testID="home-ai-voice-btn"
+              label={`AI Voice Mode: ${aiVoiceActive ? 'Listening' : 'Off'}`}
+              ttsHint="Double tap to toggle voice navigation."
+              onDoubleTap={toggleAiVoiceMode}
+              style={[
+                styles.secondaryTile,
+                aiVoiceActive && styles.aiActiveTile,
+              ]}
             >
-              <Text style={styles.secondaryTitle}>Auditory</Text>
-              <Text style={styles.secondaryTitle}>Games</Text>
-              <Text style={styles.secondarySub}>Pitch • Chords • Notes</Text>
+              <Text style={styles.secondaryTitle}>AI Voice</Text>
+              <Text style={styles.secondarySub}>
+                {aiVoiceActive ? 'Listening • On' : 'Tap to Speak'}
+              </Text>
             </AccessibleTouchable>
 
             <AccessibleTouchable
-              label="More Hub: Audiobook Library and Extensions"
-              ttsHint="Open your saved Audiobook Library, Ray-Ban Meta Smart Glasses, and Be My Eyes extension. Tap again to open."
-              onDoubleTap={() =>
-                navigateWithVoice(
-                  'MoreHub',
-                  'Opening More Hub: Audiobook Library and Extensions.'
-                )
-              }
+              testID="home-library-btn"
+              label="Library and More"
+              ttsHint="Double tap to open."
+              onDoubleTap={() => navigateWithVoice('MoreHub', 'Library.')}
               style={styles.secondaryTile}
             >
-              <Text style={styles.secondaryTitle}>More</Text>
-              <Text style={styles.secondaryTitle}>Library & Ext</Text>
-              <Text style={styles.secondarySub}>Audiobooks • Glasses</Text>
+              <Text style={styles.secondaryTitle}>Library</Text>
+              <Text style={styles.secondarySub}>Books • Wearables</Text>
             </AccessibleTouchable>
           </View>
 
           <View style={styles.gridRow}>
             <AccessibleTouchable
-              label="Settings"
-              ttsHint="Adjust Volume Control, Tone, Narrator Voice, Language, and Check for Updates. Tap again to open."
+              testID="home-games-btn"
+              label="Auditory Games"
+              ttsHint="Double tap to open."
               onDoubleTap={() =>
-                navigateWithVoice('Settings', 'Opening Settings.')
+                navigateWithVoice('AuditoryGames', 'Auditory Games.')
               }
               style={styles.secondaryTile}
             >
-              <Text style={styles.secondaryTitle}>Settings</Text>
-              <Text style={styles.secondarySub}>Volume • Voice • Lang</Text>
+              <Text style={styles.secondaryTitle}>Games</Text>
+              <Text style={styles.secondarySub}>Pitch • Chords</Text>
             </AccessibleTouchable>
 
             <AccessibleTouchable
-              label="Back to Setup"
-              ttsHint="Return to the Welcome visual impairment setup screen. Tap again to open."
-              onDoubleTap={() =>
-                navigateWithVoice(
-                  'Onboarding',
-                  'Returning to Welcome Visual Setup.'
-                )
-              }
+              testID="home-settings-btn"
+              label="Settings"
+              ttsHint="Double tap to open."
+              onDoubleTap={() => navigateWithVoice('Settings', 'Settings.')}
               style={styles.secondaryTile}
             >
-              <Text style={styles.secondaryTitle}>Back to</Text>
-              <Text style={styles.secondaryTitle}>Setup</Text>
-              <Text style={styles.secondarySub}>Vision Profile</Text>
+              <Text style={styles.secondaryTitle}>Settings</Text>
+              <Text style={styles.secondarySub}>Voice • Language</Text>
             </AccessibleTouchable>
           </View>
         </View>
@@ -127,11 +165,11 @@ const styles = StyleSheet.create({
   },
   screenContainer: {
     flex: 1,
-    padding: 20,
-    gap: 16,
+    padding: 18,
+    gap: 14,
   },
-  heroTop60: {
-    flex: 6,
+  heroScannerBox: {
+    flex: 3.6,
     width: '100%',
   },
   heroScannerButton: {
@@ -139,32 +177,67 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#F5C518',
     borderRadius: 26,
-    padding: 24,
+    padding: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
   heroLabel: {
     color: '#000000',
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: '800',
-    lineHeight: 42,
+    lineHeight: 40,
     textAlign: 'center',
   },
   heroSubtext: {
     color: '#1A1A1C',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    marginTop: 8,
+    marginTop: 6,
   },
-  secondaryBottom40: {
-    flex: 4,
+  cameraAiBox: {
+    flex: 1.8,
     width: '100%',
-    gap: 14,
+  },
+  cameraAiButton: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: '#141416',
+    borderWidth: 2,
+    borderColor: '#B26BFF',
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  cameraOrb: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#B26BFF',
+    borderWidth: 4,
+    borderColor: '#F5C518',
+  },
+  cameraAiTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  cameraAiSub: {
+    color: '#D1D1D6',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  secondaryBottomGrid: {
+    flex: 3.4,
+    width: '100%',
+    gap: 12,
   },
   gridRow: {
     flex: 1,
     flexDirection: 'row',
-    gap: 14,
+    gap: 12,
   },
   secondaryTile: {
     flex: 1,
@@ -172,10 +245,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#141416',
     borderWidth: 1.5,
     borderColor: '#26262A',
-    borderRadius: 22,
+    borderRadius: 20,
     padding: 12,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  aiActiveTile: {
+    borderColor: '#B26BFF',
+    backgroundColor: '#1E162B',
   },
   secondaryTitle: {
     color: '#FFFFFF',

@@ -12,7 +12,8 @@
         {
           "cameraPermission": "Blind-ER needs camera access to scan book pages and read them aloud as an audiobook."
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "ios": {
       "supportsTablet": true,
@@ -30,4 +31,3 @@
     }
   }
 }
-

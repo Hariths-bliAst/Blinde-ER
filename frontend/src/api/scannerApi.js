@@ -1,21 +1,66 @@
 /**
- * Blind-ER Frontend API Service (CORE LOGIC - DO NOT EDIT FOR STYLING)
- * Communicates with the Python FastAPI backend for Stage 1 (CRNN) and Stage 2 (Gemini LLM).
+ * Blind-ER Frontend API Service
+ * Hardened with strict 8-second network timeout (`FETCH_TIMEOUT_MS = 8000`)
+ * for Book Scanning, Gemini Vision Camera Mode, and AI Voice Command routing.
  */
 
 import { ENV } from '../config/env';
 
+export const FETCH_TIMEOUT_MS = 8000;
+
 /**
- * Stage 1: Sends captured camera photo to `/api/extract-text` (CRNN endpoint).
- * If running in emulator/demo mode without a physical camera URI (`mock://`),
- * routes to `/api/demo-scan` which synthesizes a 128x32 book strip and runs
- * Hariths's real PyTorch CRNN model on the backend.
- * @param {string} imageUri Local file URI from Expo Camera
- * @returns {Promise<{ raw_text: string, engine: string, confidence: number }>}
+ * Executes `fetch` with a strict 8-second timeout using both AbortController
+ * and a timer race so hung connections terminate deterministically.
+ */
+export async function fetchWithTimeout(
+  url,
+  options = {},
+  timeoutMs = FETCH_TIMEOUT_MS
+) {
+  const controller =
+    typeof AbortController !== 'undefined' ? new AbortController() : null;
+  let timeoutId = null;
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      if (controller) {
+        try {
+          controller.abort();
+        } catch {
+          // Ignore abort errors
+        }
+      }
+      const timeoutError = new Error('Network request timed out after 8 seconds.');
+      timeoutError.code = 'ETIMEDOUT';
+      reject(timeoutError);
+    }, timeoutMs);
+  });
+
+  try {
+    const fetchPromise = fetch(url, {
+      ...options,
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error?.name === 'AbortError') {
+      const abortErr = new Error('Network request timed out after 8 seconds.');
+      abortErr.code = 'ETIMEDOUT';
+      throw abortErr;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Stage 1: Sends captured camera photo to `/api/extract-text`.
  */
 export async function extractTextWithCrnn(imageUri) {
   if (!imageUri || imageUri.startsWith('mock://')) {
-    const demoRes = await fetch(`${ENV.API_BASE_URL}/api/demo-scan`, {
+    const demoRes = await fetchWithTimeout(`${ENV.API_BASE_URL}/api/demo-scan`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -28,13 +73,13 @@ export async function extractTextWithCrnn(imageUri) {
     });
     if (!demoRes.ok) {
       const errText = await demoRes.text();
-      throw new Error(`CRNN Demo Scan Error (${demoRes.status}): ${errText}`);
+      throw new Error(`Text Scan Error (${demoRes.status}): ${errText}`);
     }
     const data = await demoRes.json();
     return {
-      raw_text: data.raw_text,
-      engine: data.crnn_engine,
-      confidence: data.crnn_confidence,
+      raw_text: data?.raw_text ?? '',
+      engine: data?.crnn_engine,
+      confidence: data?.crnn_confidence,
     };
   }
 
@@ -45,44 +90,114 @@ export async function extractTextWithCrnn(imageUri) {
     type: 'image/jpeg',
   });
 
-  const response = await fetch(`${ENV.API_BASE_URL}/api/extract-text`, {
-    method: 'POST',
-    body: formData,
-    headers: {
-      Accept: 'application/json',
-    },
-  });
+  const response = await fetchWithTimeout(
+    `${ENV.API_BASE_URL}/api/extract-text`,
+    {
+      method: 'POST',
+      body: formData,
+      headers: {
+        Accept: 'application/json',
+      },
+    }
+  );
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`CRNN Extraction Error (${response.status}): ${errText}`);
+    throw new Error(`Text Extraction Error (${response.status}): ${errText}`);
   }
 
   return response.json();
 }
 
 /**
- * Stage 2: Sends raw CRNN text to `/api/contextualize` (Gemini LLM Narrator & Translator).
- * @param {string} rawText Raw OCR output from Stage 1
- * @param {string} targetLanguage Target audiobook narration language
- * @returns {Promise<{ narrated_text: string, target_language: string, model: string }>}
+ * Stage 2: Sends extracted text to `/api/contextualize` for narration and translation.
  */
 export async function contextualizeWithLlm(rawText, targetLanguage) {
-  const response = await fetch(`${ENV.API_BASE_URL}/api/contextualize`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      raw_text: rawText,
-      target_language: targetLanguage,
-    }),
-  });
+  const response = await fetchWithTimeout(
+    `${ENV.API_BASE_URL}/api/contextualize`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        raw_text: rawText,
+        target_language: targetLanguage,
+      }),
+    }
+  );
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`LLM Contextualization Error (${response.status}): ${errText}`);
+    throw new Error(`Narration Service Error (${response.status}): ${errText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Camera AI Mode: Sends a camera frame to `/api/describe-scene` (Gemini Vision)
+ * to describe what is in front of the user.
+ */
+export async function describeSceneWithGemini(
+  imageUri,
+  question = '',
+  targetLanguage = 'English'
+) {
+  const formData = new FormData();
+  formData.append('image', {
+    uri: imageUri || 'mock://scene-frame.jpg',
+    name: 'scene.jpg',
+    type: 'image/jpeg',
+  });
+  formData.append('question', question);
+  formData.append('target_language', targetLanguage);
+
+  const response = await fetchWithTimeout(
+    `${ENV.API_BASE_URL}/api/describe-scene`,
+    {
+      method: 'POST',
+      body: formData,
+      headers: { Accept: 'application/json' },
+    }
+  );
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Scene Description Error (${response.status}): ${errText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * AI Voice Mode: Routes a spoken user command via `/api/voice-command` (Gemini).
+ */
+export async function sendVoiceCommandToGemini(
+  transcript,
+  screen = 'home',
+  targetLanguage = 'English'
+) {
+  const response = await fetchWithTimeout(
+    `${ENV.API_BASE_URL}/api/voice-command`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        transcript,
+        screen,
+        target_language: targetLanguage,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Voice Command Error (${response.status}): ${errText}`);
   }
 
   return response.json();

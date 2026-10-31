@@ -1,11 +1,6 @@
 /**
  * Blind-ER Screen 8: HardwareHubScreen.js
- * Clean Hardware & Assistive Extension Integration Placeholder Screen
- * Accessed via `More -> Extensions`.
- * Provides modular placeholder slots for:
- *   1. [HARDWARE PLACEHOLDER 1]: Ray-Ban Meta Smart Glasses (BLE / Meta DAT SDK)
- *   2. [HARDWARE PLACEHOLDER 2]: External Wearable Camera / Ultrasonic Smart Cane (RTSP / WebSocket)
- *   3. [EXTENSION PLACEHOLDER 3]: Be My Eyes Assistive App Extension Bridge
+ * Clean Smart Glasses & Assistive Wearables Hub without cluttered technical jargon.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -19,26 +14,26 @@ import {
   sendHardwareFramePlaceholder,
 } from '../../logic/hardwarePlaceholder';
 
-const PLACEHOLDER_SLOTS = [
+const WEARABLE_MODES = [
   {
     id: 'META_GLASSES',
-    slotBadge: 'HARDWARE PLACEHOLDER 01 • BLE / SDK SLOT',
+    slotBadge: 'SMART GLASSES • LIVE AUDIO',
     title: 'Ray-Ban Meta Smart Glasses',
-    subtitle: 'Placeholder for Meta Wearables DAT SDK (POV Camera + Bone-Conduction Audio)',
+    subtitle: 'Hands-free camera and spatial bone-conduction voice guidance',
     sceneId: 'CROSSWALK',
   },
   {
     id: 'BE_MY_EYES',
-    slotBadge: 'EXTENSION PLACEHOLDER 02 • APP BRIDGE SLOT',
-    title: 'Be My Eyes App Extension',
-    subtitle: 'Placeholder for Volunteer Video Bridge + CRNN OCR Telemetry Handoff',
+    slotBadge: 'LIVE ASSISTANCE • VIDEO BRIDGE',
+    title: 'Be My Eyes Live Bridge',
+    subtitle: 'Instant visual assistance with volunteer and AI voice support',
     sceneId: 'PHARMACY',
   },
   {
     id: 'SMART_CANE_IOT',
-    slotBadge: 'HARDWARE PLACEHOLDER 03 • BLE SENSOR SLOT',
-    title: 'Ultrasonic Smart Cane & ESP32-CAM',
-    subtitle: 'Placeholder for External BLE Obstacle Sensor & RTSP Wearable Stream',
+    slotBadge: 'MOBILITY SENSOR • HAPTIC CUE',
+    title: 'Smart Cane Sensor',
+    subtitle: 'Obstacle distance alerts and hands-free reading guidance',
     sceneId: 'BOOKSTORE',
   },
 ];
@@ -46,70 +41,65 @@ const PLACEHOLDER_SLOTS = [
 export default function HardwareHubScreen({ navigation }) {
   const [slotIdx, setSlotIdx] = useState(0);
   const [statusMessage, setStatusMessage] = useState(
-    '[Hardware Integration Placeholder]: Select a hardware or app extension slot above. Double-tap "Test Hook" to run a simulated payload through POST /api/hardware-assist, or wire your physical SDK in src/logic/hardwarePlaceholder.js.'
+    'Ready. Double-tap Scan View to hear live environmental guidance.'
   );
 
-  const currentSlot = PLACEHOLDER_SLOTS[slotIdx];
+  const currentSlot = WEARABLE_MODES[slotIdx];
 
   useEffect(() => {
-    speakAssistivePrompt(
-      'Hardware and Extension Integration Placeholder opened. Slot 1: Ray-Ban Meta Smart Glasses SDK Placeholder.'
-    );
+    speakAssistivePrompt('Smart Glasses and Wearables.');
   }, []);
 
-  const handlePairPlaceholder = async () => {
+  const handlePairDevice = async () => {
     const res = await connectWearableHardwarePlaceholder(currentSlot.id);
     setStatusMessage(res.message);
     speakAssistivePrompt(res.message);
   };
 
-  const handleTestPlaceholderHook = async () => {
-    speakAssistivePrompt(`Testing placeholder hook for ${currentSlot.title}.`);
+  const handleScanEnvironment = async () => {
     const data = await sendHardwareFramePlaceholder({
-      deviceMode: currentSlot.id === 'BE_MY_EYES' ? 'BE_MY_EYES' : 'META_GLASSES',
+      deviceMode:
+        currentSlot.id === 'BE_MY_EYES' ? 'BE_MY_EYES' : 'META_GLASSES',
       sceneId: currentSlot.sceneId,
       targetLanguage: 'English',
     });
-    const out = `[Placeholder Test Output — ${currentSlot.title}]: ${data.spoken_guidance}`;
-    setStatusMessage(out);
+    setStatusMessage(data.spoken_guidance);
     speakAssistivePrompt(data.spoken_guidance);
   };
 
-  const handleNextSlot = () => {
-    const next = (slotIdx + 1) % PLACEHOLDER_SLOTS.length;
+  const handleNextDevice = () => {
+    const next = (slotIdx + 1) % WEARABLE_MODES.length;
     setSlotIdx(next);
-    const nextSlot = PLACEHOLDER_SLOTS[next];
-    const msg = `Switched to ${nextSlot.slotBadge}: ${nextSlot.title}.`;
-    setStatusMessage(msg);
-    speakAssistivePrompt(msg);
+    const nextSlot = WEARABLE_MODES[next];
+    setStatusMessage(`${nextSlot.title} selected.`);
+    speakAssistivePrompt(nextSlot.title);
   };
 
   return (
     <FeatureLayoutTemplate
-      featureTitle="Hardware and Extension Integration Placeholder"
+      featureTitle="Smart Wearables"
       onBack={() => navigation?.navigate?.('MoreHub')}
       primaryAction={{
-        label: 'Pair SDK',
+        label: 'Connect',
         icon: '🔌',
-        hint: 'Tap again to check the hardware SDK placeholder connection.',
-        onDoubleTap: handlePairPlaceholder,
+        hint: 'Double tap to connect.',
+        onDoubleTap: handlePairDevice,
       }}
       secondaryAction={{
-        label: 'Test Hook',
-        icon: '⚡',
-        hint: 'Tap again to send a test frame from this placeholder slot to the backend.',
-        onDoubleTap: handleTestPlaceholderHook,
+        label: 'Scan View',
+        icon: '🕶️',
+        hint: 'Double tap to describe view.',
+        onDoubleTap: handleScanEnvironment,
       }}
-      nextLabel="Next Slot"
-      nextHint="Tap again to cycle through hardware and extension placeholder slots."
-      onNext={handleNextSlot}
+      nextLabel="Switch"
+      nextHint="Double tap for next device."
+      onNext={handleNextDevice}
     >
       <View style={styles.wrapper}>
-        {/* Hardware / Extension Placeholder Slot Card */}
         <AccessibleTouchable
-          label={`${currentSlot.slotBadge}. ${currentSlot.title}. ${currentSlot.subtitle}`}
-          ttsHint="Tap again to test this hardware integration placeholder."
-          onDoubleTap={handleTestPlaceholderHook}
+          label={currentSlot.title}
+          ttsHint="Double tap to describe view."
+          onDoubleTap={handleScanEnvironment}
           style={styles.placeholderSlotCard}
         >
           <Text style={styles.slotEyebrow}>{currentSlot.slotBadge}</Text>
@@ -117,11 +107,8 @@ export default function HardwareHubScreen({ navigation }) {
           <Text style={styles.slotSubtitle}>{currentSlot.subtitle}</Text>
         </AccessibleTouchable>
 
-        {/* SDK Hook Output & Developer Instructions Card */}
         <View style={styles.outputCard}>
-          <Text style={styles.outputEyebrow}>
-            🛠️ SDK INTEGRATION HOOK (src/logic/hardwarePlaceholder.js)
-          </Text>
+          <Text style={styles.outputEyebrow}>VOICE ASSISTANT GUIDANCE</Text>
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={styles.outputBody}>{statusMessage}</Text>
           </ScrollView>
@@ -143,7 +130,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#F5C518',
     borderRadius: 24,
-    borderStyle: 'dashed',
     padding: 20,
     justifyContent: 'center',
     alignItems: 'center',

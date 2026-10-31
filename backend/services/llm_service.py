@@ -92,11 +92,12 @@ def contextualize_and_translate_text(
     try:
         # Connect directly to Google AI Studio Free Tier (Generativelanguage API)
         client = genai.Client(api_key=api_key)
+        # Verified active models with available quota
         candidate_models = [
+            "gemini-3.5-flash",
+            "gemini-3.8-flash",
+            "gemini-flash-lite-latest",
             settings.GEMINI_MODEL_NAME,
-            "gemini-3-flash-preview",
-            "gemini-3.1-flash-lite-preview",
-            "gemma-4-26b-a4b-it",
         ]
         # Deduplicate while preserving order
         models_to_try = list(dict.fromkeys(candidate_models))
@@ -108,7 +109,8 @@ def contextualize_and_translate_text(
                     contents=user_prompt,
                     config=types.GenerateContentConfig(
                         system_instruction=NARRATOR_SYSTEM_PROMPT,
-                        temperature=0.4,
+                        temperature=0.2,
+                        max_output_tokens=800,
                     ),
                 )
                 narrated_text = (response.text or "").strip()

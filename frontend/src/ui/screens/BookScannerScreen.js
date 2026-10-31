@@ -1,15 +1,9 @@
 /**
  * Blind-ER Screen 3: BookScannerScreen.js
- * Specific implementation of the "Book-to-Audio" scanner built on top of
- * `FeatureLayoutTemplate.js` and `AccessibleTouchable.js`.
- *
- * - Top 75% Hero Content: Native CameraView + High-Contrast Large Text Overlay.
- * - Bottom 25% Control Bar:
- *     1. Back (Returns to HomeScreen)
- *     2. Capture (Snaps photo -> Custom PyTorch CRNN -> Gemini 3 Flash -> TTS)
- *     3. Stop / Read (Pauses or replays audiobook narration)
- *     4. Next (Advances to the next book page)
- *     5. More (Overflow auditory menu to switch translation language)
+ * Hardened Book-to-Audio Scanner Screen:
+ *   - Top 75% Hero Content: Camera Viewfinder + High-Contrast Reader Overlay.
+ *   - Bottom 25% Spatial Bar: 4 full-bleed buttons (Back, Capture, Read/Pause/Resume, Next).
+ *   - Supports true sentence-level Pause & Resume so pausing never restarts from the beginning.
  */
 
 import React from 'react';
@@ -17,7 +11,10 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { CameraView } from 'expo-camera';
 import FeatureLayoutTemplate from '../components/FeatureLayoutTemplate';
 import AccessibleTouchable from '../components/AccessibleTouchable';
-import { useScannerController } from '../../logic/useScannerController';
+import {
+  useScannerController,
+  CAMERA_PERMISSION_DENIED_MESSAGE,
+} from '../../logic/useScannerController';
 
 export default function BookScannerScreen({ navigation }) {
   const {
@@ -28,50 +25,113 @@ export default function BookScannerScreen({ navigation }) {
     narratedText,
     targetLanguage,
     isSpeaking,
+    isPaused,
+    confirmStartReading,
+    cancelReading,
+    resumeCurrent,
+    replayLastSentence,
+    restartFromBeginning,
     onSingleTap,
     onDoubleTap,
-    onLongPress,
   } = useScannerController();
+
+  const isPermissionDenied =
+    cameraPermission && cameraPermission.granted === false;
+
+  const isConfirming = status === 'AWAITING_CONFIRMATION';
+  const isPausedMenu = status === 'PAUSED_MENU';
+
+  const secondaryLabel = isSpeaking ? 'Pause' : isPaused ? 'Resume' : 'Read';
+  const secondaryIcon = isSpeaking ? '⏸' : '▶';
+  const secondaryHint = isSpeaking
+    ? 'Double tap to pause.'
+    : isPaused
+      ? 'Double tap to resume reading.'
+      : 'Double tap to read aloud.';
+
+  let primaryAction = {
+    label: 'Capture',
+    icon: '◎',
+    hint: 'Double tap to scan page.',
+    confirmSpeech: 'Scanning.',
+    onDoubleTap: onSingleTap,
+  };
+
+  let secondaryAction = {
+    label: secondaryLabel,
+    icon: secondaryIcon,
+    hint: secondaryHint,
+    onDoubleTap: onDoubleTap,
+  };
+
+  let nextLabel = 'Next';
+  let nextHint = 'Double tap for next page.';
+  let onNext = onSingleTap;
+
+  if (isConfirming) {
+    primaryAction = {
+      label: 'Read',
+      icon: '▶',
+      hint: 'Double tap to start reading.',
+      confirmSpeech: 'Reading.',
+      onDoubleTap: confirmStartReading,
+    };
+    secondaryAction = {
+      label: 'Cancel',
+      icon: '✕',
+      hint: 'Double tap to cancel reading.',
+      confirmSpeech: 'Cancelled.',
+      onDoubleTap: cancelReading,
+    };
+    nextLabel = 'Read';
+    nextHint = 'Double tap to start reading.';
+    onNext = confirmStartReading;
+  } else if (isPausedMenu) {
+    primaryAction = {
+      label: 'Resume',
+      icon: '▶',
+      hint: 'Double tap to resume from current position.',
+      confirmSpeech: 'Resuming.',
+      onDoubleTap: resumeCurrent,
+    };
+    secondaryAction = {
+      label: 'Replay',
+      icon: '↺',
+      hint: 'Double tap to reread last sentence.',
+      confirmSpeech: 'Replaying.',
+      onDoubleTap: replayLastSentence,
+    };
+    nextLabel = 'Restart';
+    nextHint = 'Double tap to restart page from beginning.';
+    onNext = restartFromBeginning;
+  }
 
   return (
     <FeatureLayoutTemplate
-      featureTitle="Book to Audio Scanner"
+      featureTitle="Book Scanner"
       onBack={() =>
-        navigation?.goBack ? navigation.goBack() : navigation?.navigate?.('Home')
+        isConfirming
+          ? cancelReading()
+          : navigation?.goBack
+            ? navigation.goBack()
+            : navigation?.navigate?.('Home')
       }
-      primaryAction={{
-        label: 'Capture',
-        icon: '📸',
-        hint: 'Double tap to capture book page and run AI narration.',
-        confirmSpeech: 'Capturing book page.',
-        onDoubleTap: onSingleTap,
-      }}
-      secondaryAction={{
-        label: isSpeaking ? 'Stop' : 'Read',
-        icon: isSpeaking ? '⏹' : '🔊',
-        hint: isSpeaking
-          ? 'Double tap to stop audio playback.'
-          : 'Double tap to read the scanned page aloud.',
-        onDoubleTap: onDoubleTap,
-      }}
-      nextLabel="Next"
-      nextHint="Double tap to scan the next page."
-      onNext={onSingleTap}
-      overflowActions={[
-        {
-          label: `Switch Language (Current: ${targetLanguage})`,
-          onExecute: onLongPress,
-        },
-      ]}
+      primaryAction={primaryAction}
+      secondaryAction={secondaryAction}
+      nextLabel={nextLabel}
+      nextHint={nextHint}
+      onNext={onNext}
     >
-      {/* ================================================================= */}
-      {/* TOP 75% HERO AREA: CAMERA VIEWFINDER + LARGE TEXT OVERLAY         */}
-      {/* ================================================================= */}
       <View style={styles.heroWrapper}>
         {/* Camera Viewfinder */}
         <AccessibleTouchable
-          label={`Camera Viewfinder. Status: ${status}. ${statusMessage}`}
-          ttsHint="Double tap to capture this book page."
+          testID="camera-viewfinder"
+          label={
+            isPermissionDenied
+              ? CAMERA_PERMISSION_DENIED_MESSAGE
+              : `Camera Viewfinder. ${statusMessage}`
+          }
+          ttsHint="Double tap to scan page."
           onDoubleTap={onSingleTap}
           style={styles.cameraContainer}
         >
@@ -85,26 +145,36 @@ export default function BookScannerScreen({ navigation }) {
           ) : (
             <View style={styles.cameraFallback}>
               <Text style={styles.cameraBadge}>
-                CAMERA LENS • {targetLanguage.toUpperCase()}
+                {isPermissionDenied
+                  ? 'SYSTEM SETTINGS REQUIRED'
+                  : `LENS • ${targetLanguage.toUpperCase()}`}
               </Text>
-              <Text style={styles.cameraStatusText}>{statusMessage}</Text>
+              <Text
+                testID="camera-status-text"
+                style={styles.cameraStatusText}
+              >
+                {isPermissionDenied
+                  ? CAMERA_PERMISSION_DENIED_MESSAGE
+                  : statusMessage}
+              </Text>
             </View>
           )}
         </AccessibleTouchable>
 
-        {/* Large High-Contrast Audiobook Text Display Overlay */}
+        {/* High-Contrast Reader Card */}
         <View style={styles.textOverlayCard}>
           <View style={styles.overlayHeaderRow}>
             <Text style={styles.overlayLabel}>
-              AUDIOBOOK OUTPUT ({targetLanguage.toUpperCase()})
+              VOICE READER ({targetLanguage.toUpperCase()})
             </Text>
-            <Text style={styles.statePill}>{status}</Text>
+            <Text testID="scanner-state-pill" style={styles.statePill}>
+              {status}
+            </Text>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.largeReaderText}>
-              {narratedText ||
-                'Point camera at a book page and double-tap "Capture" in the bottom bar. Tap any button once to hear its name.'}
+            <Text testID="narrated-reader-text" style={styles.largeReaderText}>
+              {narratedText || 'Point camera at a page and double-tap Capture.'}
             </Text>
           </ScrollView>
         </View>
@@ -116,14 +186,15 @@ export default function BookScannerScreen({ navigation }) {
 const styles = StyleSheet.create({
   heroWrapper: {
     flex: 1,
-    gap: 16,
+    gap: 14,
   },
   cameraContainer: {
     flex: 4.2,
     width: '100%',
-    backgroundColor: '#1D1D1F',
-    borderWidth: 3,
+    backgroundColor: '#141416',
+    borderWidth: 2,
     borderColor: '#FFD600',
+    borderRadius: 22,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
@@ -138,37 +209,38 @@ const styles = StyleSheet.create({
   },
   cameraBadge: {
     color: '#FFD600',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 1.1,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.0,
     marginBottom: 8,
   },
   cameraStatusText: {
     color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     textAlign: 'center',
-    lineHeight: 28,
+    lineHeight: 26,
   },
   textOverlayCard: {
     flex: 5.8,
     width: '100%',
-    backgroundColor: '#1D1D1F',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    padding: 20,
+    backgroundColor: '#141416',
+    borderWidth: 1.5,
+    borderColor: '#26262A',
+    borderRadius: 22,
+    padding: 18,
   },
   overlayHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   overlayLabel: {
     color: '#FFD600',
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 0.9,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   statePill: {
     color: '#000000',
@@ -176,14 +248,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 999,
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '800',
   },
   largeReaderText: {
     color: '#FFFFFF',
-    fontSize: 26,
-    fontWeight: '600',
-    lineHeight: 36,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 34,
   },
 });
-

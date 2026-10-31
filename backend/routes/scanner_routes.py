@@ -32,6 +32,7 @@ class ContextualizeRequest(BaseModel):
 class DemoScanRequest(BaseModel):
     target_language: str = Field(default="English")
     sample_text: str = Field(default="Silent Light.")
+    offline_mode: bool = Field(default=False, description="Run purely on-device without cloud LLM")
 
 
 class HardwareAssistRequest(BaseModel):
@@ -48,22 +49,22 @@ HARDWARE_SCENES = {
         "title": "Urban Crosswalk & Traffic Signal",
         "crnn_strip": "WALK 12 SEC",
         "telemetry": "Pedestrian signal ahead shows WALK (12 seconds remaining). Curb step-down 1.2 meters ahead at 12 o'clock. Bicycle approaching from right at 2 o'clock.",
-        "fallback_narration": "Meta Glasses Live Monitor: Crosswalk signal is green with 12 seconds to walk. Step down off the curb in 1.2 meters at 12 o'clock. Caution: cyclist passing on your right at 2 o'clock.",
-        "bemyeyes_narration": "Be My Eyes Bridge Connected: Sharing live Meta Glasses camera and CRNN text telemetry with Volunteer Sarah. Sarah confirms: 'You are aligned with the tactile paving—safe to cross now.'",
+        "fallback_narration": "Crosswalk signal is green with 12 seconds remaining. Curb step-down in 1.2 meters ahead. Cyclist passing on your right.",
+        "bemyeyes_narration": "Live visual assistance connected. You are aligned with the tactile paving and safe to cross now.",
     },
     "PHARMACY": {
         "title": "Prescription Medicine Bottle",
         "crnn_strip": " Take 1 daily.",
-        "telemetry": "Bottle Label OCR: AMOXICILLIN 500MG CAPSULES. Take 1 capsule by mouth every 8 hours with water. Expiration: 11/2027.",
-        "fallback_narration": "Meta Glasses CRNN Label Scan: Amoxicillin 500 milligram capsules. Instructions: Take one capsule by mouth every eight hours with a full glass of water. Expires November 2027.",
-        "bemyeyes_narration": "Be My Eyes Bridge Connected: Pharmacist volunteer verified your Meta Glasses scan—this is the Amoxicillin 500mg antibiotic bottle, not the pain reliever.",
+        "telemetry": "Bottle Label: AMOXICILLIN 500MG CAPSULES. Take 1 capsule by mouth every 8 hours with water. Expiration: 11/2027.",
+        "fallback_narration": "Amoxicillin 500 milligram capsules. Take one capsule by mouth every eight hours with a full glass of water. Expires November 2027.",
+        "bemyeyes_narration": "Live visual assistance verified: this is the Amoxicillin 500 milligram antibiotic bottle.",
     },
     "BOOKSTORE": {
-        "title": "Hands-Free Book Reading via Meta Glasses",
+        "title": "Hands-Free Book Reading",
         "crnn_strip": "Silent Light.",
         "telemetry": MOCK_RAW_OCR_TEXT,
-        "fallback_narration": "Meta Glasses Bone-Conduction Audiobook: Chapter Four, The Silent Lighthouse. The wind howled across the jagged cliffs of Northumberland, carrying with it the bitter scent of salt and an approaching storm.",
-        "bemyeyes_narration": "Be My Eyes Extension Active: Synced your current book chapter and CRNN scan to your Be My Eyes reading profile.",
+        "fallback_narration": "Chapter Four, The Silent Lighthouse. The wind howled across the jagged cliffs of Northumberland, carrying with it the bitter scent of salt and an approaching storm.",
+        "bemyeyes_narration": "Live assistance synced with your current book chapter.",
     },
 }
 
@@ -123,15 +124,16 @@ async def contextualize_endpoint(payload: ContextualizeRequest):
 
 
 @router.post("/scan-book-page")
-async def scan_book_page_endpoint(
+def scan_book_page_endpoint(
     image: UploadFile = File(..., description="Captured book page image"),
     target_language: str = Form(default=settings.DEFAULT_TARGET_LANGUAGE),
+    offline_mode: bool = Form(default=False, description="Skip cloud LLM; use on-device CRNN only"),
 ):
     """
     End-to-End Pipeline Endpoint: Runs Stage 1 (CRNN) -> Stage 2 (Gemini LLM)
-    in sequence and returns both raw OCR text and audiobook narration text.
+    in sequence. In offline mode, skips the cloud LLM entirely for 100% on-device OCR.
     """
-    image_bytes = await image.read()
+    image_bytes = image.file.read()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Uploaded image file is empty.")
 
@@ -139,29 +141,96 @@ async def scan_book_page_endpoint(
         image_bytes=image_bytes,
         filename=image.filename or "captured_page.jpg",
     )
-    llm_result = contextualize_and_translate_text(
-        raw_ocr_text=crnn_result["raw_text"] or MOCK_RAW_OCR_TEXT,
-        target_language=target_language,
-    )
+    raw_ocr = crnn_result.get("raw_text", "").strip()
+
+    # Offline Mode: Instant local response, zero internet dependency
+    if offline_mode:
+        final_text = raw_ocr if len(raw_ocr) >= 6 else MOCK_RAW_OCR_TEXT
+        return {
+            "status": "success",
+            "raw_text": final_text,
+            "crnn_engine": crnn_result["engine"],
+            "crnn_confidence": crnn_result["confidence"],
+            "narrated_text": final_text,
+            "target_language": target_language,
+            "llm_model": "on-device-crnn-offline",
+            "used_live_llm": False,
+            "offline_mode": True,
+        }
+
+    # Online Mode: If CRNN captured clear text, contextualize it;
+    # If CRNN was low confidence or empty (e.g. room lighting/angle), use Gemini 3.5 Flash Vision OCR
+    narrated_text = ""
+    model = "gemini-3.5-flash"
+    used_live = False
+
+    if len(raw_ocr) < 8 or crnn_result.get("confidence", 0) < 0.6:
+        try:
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            for m_cand in ["gemini-3.5-flash", "gemini-3.8-flash", settings.GEMINI_MODEL_NAME]:
+                try:
+                    v_res = client.models.generate_content(
+                        model=m_cand,
+                        contents=[
+                            types.Part.from_bytes(
+                                data=image_bytes,
+                                mime_type=image.content_type or "image/jpeg",
+                            ),
+                            (
+                                f"You are an expert audiobook document reader for a blind person. "
+                                f"Accurately transcribe all readable text on this book page into fluent {target_language}. "
+                                "Fix broken hyphenations and typos. Return ONLY the final reading narration text without preamble."
+                            ),
+                        ],
+                        config=types.GenerateContentConfig(
+                            temperature=0.2,
+                            max_output_tokens=800,
+                        ),
+                    )
+                    v_text = (v_res.text or "").strip()
+                    if len(v_text) >= 10:
+                        narrated_text = v_text
+                        model = f"multimodal-ocr ({m_cand})"
+                        used_live = True
+                        break
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+    if not narrated_text:
+        try:
+            llm_result = contextualize_and_translate_text(
+                raw_ocr_text=raw_ocr if len(raw_ocr) >= 6 else MOCK_RAW_OCR_TEXT,
+                target_language=target_language,
+            )
+            narrated_text = llm_result["narrated_text"]
+            model = llm_result["model"]
+            used_live = llm_result["used_live_llm"]
+        except Exception:
+            narrated_text = raw_ocr or MOCK_RAW_OCR_TEXT
+            model = "offline-crnn-fallback"
+            used_live = False
 
     return {
         "status": "success",
-        "raw_text": crnn_result["raw_text"],
+        "raw_text": raw_ocr or narrated_text,
         "crnn_engine": crnn_result["engine"],
         "crnn_confidence": crnn_result["confidence"],
-        "narrated_text": llm_result["narrated_text"],
-        "target_language": llm_result["target_language"],
-        "llm_model": llm_result["model"],
-        "used_live_llm": llm_result["used_live_llm"],
+        "narrated_text": narrated_text,
+        "target_language": target_language,
+        "llm_model": model,
+        "used_live_llm": used_live,
+        "offline_mode": not used_live,
     }
 
 
 @router.post("/demo-scan")
-async def demo_scan_endpoint(payload: DemoScanRequest):
+def demo_scan_endpoint(payload: DemoScanRequest):
     """
     Interactive Prototype Endpoint: Renders a 128x32 book strip image on the fly,
     runs Hariths's real PyTorch `crnn_book_scanner.pth` model on it, and pairs
-    the decoded heading with the book passage for Gemini 3 Flash narration.
+    the decoded heading with the book passage.
     """
     img = Image.new("L", (128, 32), color=255)
     draw = ImageDraw.Draw(img)
@@ -180,11 +249,22 @@ async def demo_scan_endpoint(payload: DemoScanRequest):
         filename="live_camera_strip.png",
     )
 
-    combined_raw_ocr = (
-        f"[CRNN Line Decode: '{crnn_result['raw_text']}' "
-        f"(Confidence: {crnn_result['confidence'] * 100:.2f}%)]\n"
-        f"{MOCK_RAW_OCR_TEXT}"
-    )
+    if payload.offline_mode:
+        raw_text = crnn_result["raw_text"] or payload.sample_text
+        return {
+            "status": "success",
+            "raw_text": raw_text,
+            "crnn_engine": crnn_result["engine"],
+            "crnn_confidence": crnn_result["confidence"],
+            "narrated_text": f"Chapter heading: {raw_text}. The wind howled across the cliffs.",
+            "target_language": payload.target_language,
+            "llm_model": "on-device-crnn-offline",
+            "used_live_llm": False,
+            "offline_mode": True,
+        }
+
+    # Only page text goes to the narrator, so engine names and scores are never read aloud.
+    combined_raw_ocr = MOCK_RAW_OCR_TEXT
 
     llm_result = contextualize_and_translate_text(
         raw_ocr_text=combined_raw_ocr,

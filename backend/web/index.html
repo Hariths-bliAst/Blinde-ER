@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>Blind-ER — Voice-First Assistant</title>
+  <link rel="stylesheet" href="/static/app.css?v=3" />
+</head>
+<body data-assistant="idle">
+
+  <main class="device-shell" aria-label="Blind-ER Assistive App">
+    <div class="device-viewport">
+
+      <!-- Top bar: AI Mode orb (always reachable) -->
+      <header class="top-bar">
+        <span class="mode-badge" id="modeBadge">VOICE-FIRST</span>
+        <span class="network-badge online" id="networkStatusBadge">ONLINE</span>
+        <button
+          type="button"
+          class="ai-orb-btn a11y-touchable"
+          id="aiOrbBtn"
+          data-label="AI Mode"
+          data-hint="Control the app with your voice."
+          data-action="ai-toggle"
+          aria-pressed="false"
+        >
+          <span class="ai-orb" aria-hidden="true"></span>
+          <span class="ai-orb-text" id="aiOrbText">AI</span>
+        </button>
+      </header>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN: ONBOARDING                                             -->
+      <!-- ============================================================= -->
+      <section class="app-screen active" id="screen-onboarding" aria-label="Welcome">
+        <div class="onboarding-wrap">
+          <div class="onboarding-top">
+            <span class="hero-orb" aria-hidden="true"></span>
+            <h1 class="title">Blind-ER</h1>
+            <p class="subtitle">Your voice assistant for reading and seeing.</p>
+          </div>
+
+          <div class="onboarding-cards">
+            <button type="button" class="option-card yellow a11y-touchable"
+              data-label="Option A: Low Vision" data-action="select-low-vision">
+              <span class="option-line">Option A</span>
+              <span class="option-line">Low Vision</span>
+              <span class="option-sub">High contrast</span>
+            </button>
+            <button type="button" class="option-card dark a11y-touchable"
+              data-label="Option B: Audio First" data-action="select-fully-blind">
+              <span class="option-line">Option B</span>
+              <span class="option-line">Audio First</span>
+              <span class="option-sub">Full voice</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN: HOME                                                   -->
+      <!-- ============================================================= -->
+      <section class="app-screen" id="screen-home" aria-label="Home">
+        <div class="home-wrap">
+          <button type="button" class="home-hero a11y-touchable"
+            data-label="Book Scanner" data-action="nav-scanner">
+            <span class="home-hero-title">Book Scanner</span>
+            <span class="home-hero-sub">Turn pages into audiobooks</span>
+          </button>
+
+          <button type="button" class="home-camera a11y-touchable"
+            data-label="Camera AI" data-hint="Hear what is in front of you." data-action="nav-camera">
+            <span class="camera-tile-orb" aria-hidden="true"></span>
+            <span class="home-camera-text">
+              <span class="home-camera-title">Camera AI</span>
+              <span class="home-camera-sub">What's in front of me?</span>
+            </span>
+          </button>
+
+          <div class="home-grid">
+            <button type="button" class="tile accent a11y-touchable"
+              data-label="AI Voice Mode" data-hint="Control the app with your voice." data-action="ai-toggle">
+              <span class="tile-title">AI Voice</span>
+              <span class="tile-sub" id="homeAiState">Off</span>
+            </button>
+            <button type="button" class="tile a11y-touchable"
+              data-label="Library and More" data-action="nav-more">
+              <span class="tile-title">Library</span>
+              <span class="tile-sub">Books • Wearables</span>
+            </button>
+            <button type="button" class="tile a11y-touchable"
+              data-label="Auditory Games" data-action="nav-games">
+              <span class="tile-title">Games</span>
+              <span class="tile-sub">Pitch • Chords</span>
+            </button>
+            <button type="button" class="tile a11y-touchable"
+              data-label="Settings" data-action="nav-settings">
+              <span class="tile-title">Settings</span>
+              <span class="tile-sub">Voice • Language</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN: BOOK SCANNER                                           -->
+      <!-- ============================================================= -->
+      <section class="app-screen" id="screen-scanner" aria-label="Book Scanner">
+        <div class="feature-wrap">
+          <div class="feature-hero">
+            <div class="top-card a11y-touchable" id="bookScannerCard"
+              data-label="Book page camera viewfinder" data-hint="Tap again to capture page." data-action="scanner-capture">
+              <div class="badge-row" data-stop-tap>
+                <span class="eyebrow" id="scannerLensBadge">LIVE CAMERA • DOCUMENT LENS</span>
+                <label class="pill-btn">
+                  Camera / File
+                  <input type="file" accept="image/*" capture="environment" hidden id="scannerUpload" />
+                </label>
+              </div>
+
+              <!-- Real Phone Camera Viewfinder -->
+              <div class="scanner-viewfinder-box" id="scannerVfBox">
+                <video id="bookScannerVideo" autoplay playsinline muted aria-hidden="true"></video>
+                <canvas id="bookScannerCanvas" style="display:none;"></canvas>
+                <div class="scan-frame-guide" aria-hidden="true"></div>
+                <p class="camera-fallback-msg" id="bookScannerFallbackMsg">Starting phone camera…</p>
+              </div>
+
+              <p class="page-preview" id="bookPreviewHeading">ALIGN BOOK PAGE IN VIEW</p>
+              <p class="page-preview muted" id="bookPreviewText">Tap Capture to snap and convert page to speech.</p>
+            </div>
+
+            <div class="reader-card">
+              <div class="badge-row">
+                <span class="eyebrow" id="scannerLangBadge">AUDIOBOOK • ENGLISH</span>
+                <span class="chip" id="scannerStatePill">READY</span>
+              </div>
+              <div class="progress" aria-hidden="true"><span class="progress-fill" id="scannerProgress"></span></div>
+              <div class="reader-scroll">
+                <p class="reader-copy" id="scannerOutputText">Point phone at page and tap Capture. When scanned, Blind-ER will ask if you want to start reading.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Control Bar (Dynamically adapts between Normal, Confirm, and Paused states) -->
+          <nav class="bottom-bar" id="scannerBottomBar" aria-label="Scanner controls">
+            <button type="button" class="bar-btn a11y-touchable" id="scannerBtn1" data-label="Back" data-action="go-back">
+              <span class="bar-icon" id="scannerBtn1Icon" aria-hidden="true">←</span>
+              <span class="bar-label" id="scannerBtn1Label">Back</span>
+            </button>
+            <button type="button" class="bar-btn primary a11y-touchable" id="scannerBtn2" data-label="Capture page" data-action="scanner-capture">
+              <span class="bar-icon" id="scannerBtn2Icon" aria-hidden="true">◎</span>
+              <span class="bar-label" id="scannerBtn2Label">Capture</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" id="readStopBtn" data-label="Read" data-action="scanner-read-toggle">
+              <span class="bar-icon" id="readStopIcon" aria-hidden="true">▶</span>
+              <span class="bar-label" id="readStopLabel">Read</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" id="scannerBtn4" data-label="Restart reading" data-action="scanner-restart">
+              <span class="bar-icon" id="scannerBtn4Icon" aria-hidden="true">↺</span>
+              <span class="bar-label" id="scannerBtn4Label">Restart</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" id="scannerBtn5" data-label="Next page" data-action="scanner-next">
+              <span class="bar-icon" id="scannerBtn5Icon" aria-hidden="true">→</span>
+              <span class="bar-label" id="scannerBtn5Label">Next</span>
+            </button>
+          </nav>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN: CAMERA AI (Gemini vision)                              -->
+      <!-- ============================================================= -->
+      <section class="app-screen" id="screen-camera" aria-label="Camera AI">
+        <div class="feature-wrap">
+          <div class="feature-hero">
+            <div class="viewfinder a11y-touchable" id="viewfinder"
+              data-label="Camera view" data-hint="Tap again to describe." data-action="camera-describe">
+              <video id="cameraVideo" autoplay playsinline muted aria-hidden="true"></video>
+              <div class="scan-line" aria-hidden="true"></div>
+              <div class="viewfinder-corners" aria-hidden="true"></div>
+              <p class="viewfinder-msg" id="cameraMsg">Starting camera…</p>
+              <input type="file" accept="image/*" capture="environment" hidden id="cameraFileInput" />
+            </div>
+
+            <div class="reader-card">
+              <div class="badge-row">
+                <span class="eyebrow">GEMINI VISION</span>
+                <span class="chip" id="cameraStatePill">READY</span>
+              </div>
+              <div class="reader-scroll">
+                <p class="reader-copy" id="cameraOutputText">Point your phone and double-tap Describe.</p>
+              </div>
+            </div>
+          </div>
+
+          <nav class="bottom-bar" aria-label="Camera controls">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back" data-action="go-back">
+              <span class="bar-icon" aria-hidden="true">←</span><span class="bar-label">Back</span>
+            </button>
+            <button type="button" class="bar-btn primary a11y-touchable" data-label="Describe" data-action="camera-describe">
+              <span class="bar-icon" aria-hidden="true">👁</span><span class="bar-label">Describe</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Ask a question" data-hint="Speak your question after the tone." data-action="camera-ask">
+              <span class="bar-icon" aria-hidden="true">🎙</span><span class="bar-label">Ask</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Read text" data-action="camera-read-text">
+              <span class="bar-icon" aria-hidden="true">Aa</span><span class="bar-label">Read</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Repeat" data-action="camera-repeat">
+              <span class="bar-icon" aria-hidden="true">↻</span><span class="bar-label">Repeat</span>
+            </button>
+          </nav>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN: MORE HUB                                               -->
+      <!-- ============================================================= -->
+      <section class="app-screen" id="screen-more" aria-label="Library and More">
+        <div class="feature-wrap">
+          <div class="feature-hero">
+            <div class="stack-list">
+              <button type="button" class="row-card yellow a11y-touchable" style="flex:1.4"
+                data-label="Audiobook Library" data-action="nav-library">
+                <span class="row-left">
+                  <span class="row-title big">📚 Audiobook Library</span>
+                  <span class="row-sub" id="libraryCountChip">4 books saved</span>
+                </span>
+                <span class="row-val">OPEN →</span>
+              </button>
+              <button type="button" class="row-card a11y-touchable"
+                data-label="Smart Glasses" data-action="nav-hardware-meta">
+                <span class="row-left">
+                  <span class="row-title">🕶️ Smart Glasses</span>
+                  <span class="row-sub">Ray-Ban Meta • hands-free</span>
+                </span>
+                <span class="row-val">OPEN</span>
+              </button>
+              <button type="button" class="row-card a11y-touchable"
+                data-label="Be My Eyes" data-action="nav-hardware-bemyeyes">
+                <span class="row-left">
+                  <span class="row-title">🤝 Be My Eyes</span>
+                  <span class="row-sub">Live volunteer help</span>
+                </span>
+                <span class="row-val">OPEN</span>
+              </button>
+            </div>
+          </div>
+
+          <nav class="bottom-bar" aria-label="More controls">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back" data-action="go-back">
+              <span class="bar-icon" aria-hidden="true">←</span><span class="bar-label">Back</span>
+            </button>
+            <button type="button" class="bar-btn primary a11y-touchable" data-label="Library" data-action="nav-library">
+              <span class="bar-icon" aria-hidden="true">📚</span><span class="bar-label">Library</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Camera AI" data-action="nav-camera">
+              <span class="bar-icon" aria-hidden="true">👁</span><span class="bar-label">Camera</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Smart Glasses" data-action="nav-hardware-meta">
+              <span class="bar-icon" aria-hidden="true">🕶️</span><span class="bar-label">Glasses</span>
+            </button>
+          </nav>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN: AUDIOBOOK LIBRARY                                      -->
+      <!-- ============================================================= -->
+      <section class="app-screen" id="screen-library" aria-label="Audiobook Library">
+        <div class="feature-wrap">
+          <div class="feature-hero">
+            <div class="top-card a11y-touchable" data-label="Current book" data-hint="Tap again to play or pause." data-action="lib-play-toggle">
+              <div class="badge-row">
+                <span class="eyebrow" id="libIndexBadge">BOOK 1 OF 4</span>
+                <span class="chip" id="libStatusChip">READY</span>
+              </div>
+              <p class="book-title" id="libBookTitle">The Silent Lighthouse</p>
+              <p class="book-sub" id="libChapterSub">Chapter IV</p>
+            </div>
+
+            <div class="reader-card">
+              <div class="badge-row">
+                <span class="eyebrow" id="libLangBadge">NARRATION • ENGLISH</span>
+                <span class="chip" id="libProgressChip">0 / 0</span>
+              </div>
+              <div class="progress" aria-hidden="true"><span class="progress-fill" id="libProgress"></span></div>
+              <div class="reader-scroll">
+                <p class="reader-copy" id="libChapterText"></p>
+              </div>
+            </div>
+          </div>
+
+          <nav class="bottom-bar" aria-label="Library controls">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back" data-action="go-back">
+              <span class="bar-icon" aria-hidden="true">←</span><span class="bar-label">Back</span>
+            </button>
+            <button type="button" class="bar-btn primary a11y-touchable" id="libPlayBtn" data-label="Play" data-action="lib-play-toggle">
+              <span class="bar-icon" id="libPlayIcon" aria-hidden="true">▶</span><span class="bar-label" id="libPlayLabel">Play</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Previous book" data-action="lib-prev-book">
+              <span class="bar-icon" aria-hidden="true">⏮</span><span class="bar-label">Prev</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Next book" data-action="lib-next-book">
+              <span class="bar-icon" aria-hidden="true">⏭</span><span class="bar-label">Next</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Change language" data-action="setting-language">
+              <span class="bar-icon" aria-hidden="true">🌐</span><span class="bar-label">Lang</span>
+            </button>
+          </nav>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN: AUDITORY GAMES                                         -->
+      <!-- ============================================================= -->
+      <section class="app-screen" id="screen-games" aria-label="Auditory Games">
+        <div class="feature-wrap">
+          <div class="feature-hero">
+            <div class="top-card a11y-touchable" data-label="Play sound" data-action="game-play-sound">
+              <div class="badge-row">
+                <span class="eyebrow" id="gameModeBadge">GAME 1/4</span>
+                <span class="chip" id="gameScoreChip">SCORE 0 • STREAK 0</span>
+              </div>
+              <p class="book-title" id="gameTitleText">Pitch Training</p>
+              <p class="book-sub" id="gameSubPrompt">Is the second tone higher or lower?</p>
+            </div>
+
+            <div class="reader-card">
+              <div class="badge-row">
+                <span class="eyebrow">YOUR ANSWER</span>
+                <span class="chip" id="gameChoiceChip">CHOICE 1</span>
+              </div>
+              <div class="reader-scroll center">
+                <p class="reader-copy accent" id="gameFeedbackText">Higher Pitch</p>
+              </div>
+            </div>
+          </div>
+
+          <nav class="bottom-bar" aria-label="Game controls">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back" data-action="go-back">
+              <span class="bar-icon" aria-hidden="true">←</span><span class="bar-label">Back</span>
+            </button>
+            <button type="button" class="bar-btn primary a11y-touchable" data-label="Hear" data-action="game-play-sound">
+              <span class="bar-icon" aria-hidden="true">🎵</span><span class="bar-label">Hear</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Change answer" data-action="game-cycle-choice">
+              <span class="bar-icon" aria-hidden="true">⇄</span><span class="bar-label">Choice</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Submit" data-action="game-submit-answer">
+              <span class="bar-icon" aria-hidden="true">✓</span><span class="bar-label">Submit</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Next game" data-action="game-next-mode">
+              <span class="bar-icon" aria-hidden="true">🎮</span><span class="bar-label">Game</span>
+            </button>
+          </nav>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN: SETTINGS                                               -->
+      <!-- ============================================================= -->
+      <section class="app-screen" id="screen-settings" aria-label="Settings">
+        <div class="feature-wrap">
+          <div class="feature-hero">
+            <div class="stack-list">
+              <button type="button" class="row-card a11y-touchable" data-label="Volume" data-action="setting-volume">
+                <span class="row-left"><span class="row-title">🔊 Volume</span></span>
+                <span class="row-val" id="valVolume">100%</span>
+              </button>
+              <button type="button" class="row-card a11y-touchable" data-label="Speaking speed" data-action="setting-tone">
+                <span class="row-left"><span class="row-title">🎚️ Speed & Tone</span></span>
+                <span class="row-val" id="valTone">Natural</span>
+              </button>
+              <button type="button" class="row-card a11y-touchable" data-label="Voice" data-action="setting-voice">
+                <span class="row-left"><span class="row-title">🗣️ Voice</span></span>
+                <span class="row-val" id="valVoice">Default</span>
+              </button>
+              <button type="button" class="row-card a11y-touchable" data-label="Language" data-action="setting-language">
+                <span class="row-left"><span class="row-title">🌐 Language</span></span>
+                <span class="row-val" id="valLanguage">English</span>
+              </button>
+              <button type="button" class="row-card yellow a11y-touchable" data-label="Check for updates" data-action="setting-update">
+                <span class="row-left"><span class="row-title">🔄 Updates</span></span>
+                <span class="row-val" id="valUpdate">UP TO DATE</span>
+              </button>
+            </div>
+          </div>
+
+          <nav class="bottom-bar" aria-label="Settings controls">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back" data-action="go-back">
+              <span class="bar-icon" aria-hidden="true">←</span><span class="bar-label">Back</span>
+            </button>
+            <button type="button" class="bar-btn primary a11y-touchable" data-label="Volume" data-action="setting-volume">
+              <span class="bar-icon" aria-hidden="true">🔊</span><span class="bar-label">Volume</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Speed" data-action="setting-tone">
+              <span class="bar-icon" aria-hidden="true">🎚️</span><span class="bar-label">Speed</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Language" data-action="setting-language">
+              <span class="bar-icon" aria-hidden="true">🌐</span><span class="bar-label">Lang</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Vision setup" data-action="nav-onboarding">
+              <span class="bar-icon" aria-hidden="true">⚙️</span><span class="bar-label">Setup</span>
+            </button>
+          </nav>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN: WEARABLES (Smart Glasses / Be My Eyes)                 -->
+      <!-- ============================================================= -->
+      <section class="app-screen" id="screen-hardware" aria-label="Wearables">
+        <div class="feature-wrap">
+          <div class="feature-hero">
+            <div class="top-card a11y-touchable" data-label="Describe surroundings" data-action="hw-meta-live">
+              <div class="badge-row">
+                <span class="eyebrow" id="hwDeviceBanner">🕶️ SMART GLASSES</span>
+                <span class="chip" id="hwStatePill">READY</span>
+              </div>
+              <p class="book-title" id="hwSceneTitle">Urban Crosswalk</p>
+              <p class="book-sub" id="hwSceneDesc">Simulated glasses view</p>
+            </div>
+            <div class="reader-card">
+              <div class="badge-row"><span class="eyebrow">GUIDANCE</span></div>
+              <div class="reader-scroll">
+                <p class="reader-copy" id="hwOutputText">Double-tap Glasses or Be My Eyes for guidance.</p>
+              </div>
+            </div>
+          </div>
+
+          <nav class="bottom-bar" aria-label="Wearable controls">
+            <button type="button" class="bar-btn a11y-touchable" data-label="Back" data-action="go-back">
+              <span class="bar-icon" aria-hidden="true">←</span><span class="bar-label">Back</span>
+            </button>
+            <button type="button" class="bar-btn primary a11y-touchable" data-label="Glasses guidance" data-action="hw-meta-live">
+              <span class="bar-icon" aria-hidden="true">🕶️</span><span class="bar-label">Glasses</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Be My Eyes" data-action="hw-bemyeyes">
+              <span class="bar-icon" aria-hidden="true">🤝</span><span class="bar-label">BeMyEyes</span>
+            </button>
+            <button type="button" class="bar-btn a11y-touchable" data-label="Next scene" data-action="hw-next-scene">
+              <span class="bar-icon" aria-hidden="true">→</span><span class="bar-label">Scene</span>
+            </button>
+          </nav>
+        </div>
+      </section>
+
+      <!-- Footer: assistant caption + waveform -->
+      <footer class="assistant-footer">
+        <p class="caption" id="ttsCaptionBar">Tap once to hear • twice to select</p>
+        <div class="waveform" id="waveform" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+      </footer>
+
+    </div>
+  </main>
+
+  <canvas id="captureCanvas" hidden></canvas>
+  <script src="/static/app.js?v=3"></script>
+</body>
+</html>
+

@@ -1,10 +1,9 @@
 /**
  * Blind-ER Screen 1: OnboardingScreen.js
- * Matches the Apple-Minimalist Voice-First Reference Design:
- *   - Centered "Welcome to Blind-ER" + "Let's set up your experience. This tutorial will guide you."
- *   - Option A: Solid Yellow (#F5C518) rounded card -> "Option A / Low Vision / WCAG AAA"
- *   - Option B: Matte Dark (#141416) rounded card -> "Option B / Fully Blind / Audio-First"
- *   - Bottom Footer: "Audio tutorial is playing..." + Waveform Visualizer
+ * Clean AI Voice Assistant Onboarding:
+ *   - Concise voice prompt ("Welcome to Blind-ER. Tap once to hear, double tap to select.")
+ *   - Option A: Low Vision (High Contrast)
+ *   - Option B: Audio First (Full Voice)
  */
 
 import React, { useEffect, useState } from 'react';
@@ -13,17 +12,15 @@ import AccessibleTouchable, {
   speakAssistivePrompt,
 } from '../components/AccessibleTouchable';
 
-const ONBOARDING_PROMPT =
-  'Welcome to Blind-ER. Let us set up your experience. Tap any item once to hear what it is. Tap it a second time to select it. Choose Option A for Low Vision, or Option B for Fully Blind Audio-First.';
+export const ONBOARDING_PROMPT =
+  'Welcome to Blind-ER. Tap once to hear, double tap to select.';
 
 export default function OnboardingScreen({ navigation, onSelectMode }) {
-  const [statusCaption, setStatusCaption] = useState(
-    'Audio tutorial is playing...'
-  );
+  const [statusCaption, setStatusCaption] = useState('AI Assistant Ready');
 
   useEffect(() => {
     speakAssistivePrompt(ONBOARDING_PROMPT, {
-      onDone: () => setStatusCaption('Tap once to hear • Tap again to select'),
+      onDone: () => setStatusCaption('Tap once to hear • Double tap to select'),
     });
   }, []);
 
@@ -46,52 +43,53 @@ export default function OnboardingScreen({ navigation, onSelectMode }) {
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
       <View style={styles.container}>
-        {/* Top Centered Header */}
+        {/* Top Centered Header + AI Orb Indicator */}
         <View style={styles.headerBlock}>
-          <Text style={styles.titleText}>Welcome to Blind-ER</Text>
+          <View style={styles.aiOrbOuter}>
+            <View style={styles.aiOrbInner} />
+          </View>
+          <Text style={styles.titleText}>Blind-ER</Text>
           <Text style={styles.subtitleText}>
-            Let’s set up your experience.{'\n'}This tutorial will guide you.
+            Select your voice assistant profile
           </Text>
         </View>
 
         {/* Center Rounded Option Cards */}
         <View style={styles.optionsList}>
           <AccessibleTouchable
-            label="Option A: Low Vision, W C A G Triple A"
-            ttsHint="High contrast yellow on black with oversized text. Tap again to select."
+            testID="onboarding-option-a"
+            label="Option A: Low Vision"
+            ttsHint="Double tap to select."
             onDoubleTap={() =>
-              handleSelectProfile(
-                'LOW_VISION',
-                'Option A: Low Vision mode active. Opening Home Screen.'
-              )
+              handleSelectProfile('LOW_VISION', 'Low Vision active.')
             }
             style={styles.optionACard}
           >
             <Text style={styles.optionALine}>Option A</Text>
             <Text style={styles.optionALine}>Low Vision</Text>
-            <Text style={styles.optionALine}>WCAG AAA</Text>
+            <Text style={styles.optionASub}>High Contrast</Text>
           </AccessibleTouchable>
 
           <AccessibleTouchable
-            label="Option B: Fully Blind, Audio-First"
-            ttsHint="Complete voice guidance and maximum touch targets. Tap again to select."
+            testID="onboarding-option-b"
+            label="Option B: Audio First"
+            ttsHint="Double tap to select."
             onDoubleTap={() =>
-              handleSelectProfile(
-                'FULLY_BLIND',
-                'Option B: Fully Blind Audio-First mode active. Opening Home Screen.'
-              )
+              handleSelectProfile('FULLY_BLIND', 'Audio First active.')
             }
             style={styles.optionBCard}
           >
             <Text style={styles.optionBLine}>Option B</Text>
-            <Text style={styles.optionBLine}>Fully Blind</Text>
-            <Text style={styles.optionBLine}>Audio-First</Text>
+            <Text style={styles.optionBLine}>Audio First</Text>
+            <Text style={styles.optionBSub}>Full Voice</Text>
           </AccessibleTouchable>
         </View>
 
-        {/* Bottom Audio Tutorial Footer + Waveform */}
+        {/* Bottom AI Voice Footer + Waveform */}
         <View style={styles.audioFooter}>
-          <Text style={styles.audioCaption}>{statusCaption}</Text>
+          <Text testID="onboarding-status-caption" style={styles.audioCaption}>
+            {statusCaption}
+          </Text>
           <View style={styles.waveformRow}>
             {[6, 12, 18, 9, 20, 14, 8, 22, 15, 10, 19, 12, 7, 16, 11, 6].map(
               (h, idx) => (
@@ -121,31 +119,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
+  aiOrbOuter: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(245, 197, 24, 0.16)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  aiOrbInner: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#F5C518',
+  },
   titleText: {
     color: '#FFFFFF',
     fontSize: 28,
     fontWeight: '800',
     letterSpacing: -0.5,
-    marginBottom: 10,
+    marginBottom: 6,
     textAlign: 'center',
   },
   subtitleText: {
     color: '#D1D1D6',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    lineHeight: 22,
+    lineHeight: 20,
     textAlign: 'center',
   },
   optionsList: {
     flex: 1,
     width: '100%',
     justifyContent: 'center',
-    gap: 22,
-    paddingVertical: 16,
+    gap: 20,
+    paddingVertical: 14,
   },
   optionACard: {
     flex: 1,
-    maxHeight: 220,
+    maxHeight: 215,
     width: '100%',
     backgroundColor: '#F5C518',
     borderRadius: 26,
@@ -155,7 +168,7 @@ const styles = StyleSheet.create({
   },
   optionBCard: {
     flex: 1,
-    maxHeight: 220,
+    maxHeight: 215,
     width: '100%',
     backgroundColor: '#141416',
     borderRadius: 26,
@@ -167,17 +180,29 @@ const styles = StyleSheet.create({
   },
   optionALine: {
     color: '#000000',
-    fontSize: 29,
+    fontSize: 28,
     fontWeight: '800',
-    lineHeight: 34,
+    lineHeight: 33,
     textAlign: 'center',
+  },
+  optionASub: {
+    color: '#141416',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 6,
   },
   optionBLine: {
     color: '#FFFFFF',
-    fontSize: 29,
+    fontSize: 28,
     fontWeight: '800',
-    lineHeight: 34,
+    lineHeight: 33,
     textAlign: 'center',
+  },
+  optionBSub: {
+    color: '#8E8E93',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 6,
   },
   audioFooter: {
     alignItems: 'center',
@@ -186,9 +211,8 @@ const styles = StyleSheet.create({
   },
   audioCaption: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    fontStyle: 'italic',
   },
   waveformRow: {
     flexDirection: 'row',
@@ -198,7 +222,7 @@ const styles = StyleSheet.create({
   },
   waveBar: {
     width: 3,
-    backgroundColor: '#8E8E93',
+    backgroundColor: '#F5C518',
     borderRadius: 99,
   },
 });

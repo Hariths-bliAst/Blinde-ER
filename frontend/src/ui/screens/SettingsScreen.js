@@ -1,11 +1,11 @@
 /**
  * Blind-ER Screen 7: SettingsScreen.js
- * Real Functional Settings:
+ * Clean Voice Assistant Settings without technical jargon:
  *   1. Volume Control (25% / 50% / 75% / 100%)
  *   2. Tone & Pacing (Natural / Warm Literary / Crisp Fast / Deep Calm)
- *   3. Change Narrator Voice (Cycles System TTS Voices)
+ *   3. Change Narrator Voice
  *   4. Change Language (English / Malay / Spanish / French / Mandarin)
- *   5. Check for Updates (Verifies v2.4.0 CRNN + Gemini 3 Flash Backend)
+ *   5. Check for Updates
  */
 
 import React, { useState, useEffect } from 'react';
@@ -34,22 +34,20 @@ export default function SettingsScreen({ navigation }) {
   const [updateStatus, setUpdateStatus] = useState('v2.4.0 UP TO DATE');
 
   useEffect(() => {
-    speakAssistivePrompt(
-      'Settings opened. Adjust Volume Control, Tone and Pacing, Change Voice, Change Language, or Check for Updates.'
-    );
+    speakAssistivePrompt('Settings.');
   }, []);
 
   const cycleVolume = () => {
     const next = (volIdx + 1) % VOLUMES.length;
     setVolIdx(next);
-    speakAssistivePrompt(`Volume set to ${VOLUMES[next]}.`);
+    speakAssistivePrompt(`Volume ${VOLUMES[next]}.`);
   };
 
   const cycleTone = () => {
     const next = (toneIdx + 1) % TONES.length;
     setToneIdx(next);
     const preset = TONES[next];
-    speakAssistivePrompt(`Voice tone and pacing set to ${preset.label}.`, {
+    speakAssistivePrompt(`Tone ${preset.label}.`, {
       rate: preset.rate,
       pitch: preset.pitch,
     });
@@ -58,63 +56,53 @@ export default function SettingsScreen({ navigation }) {
   const cycleVoice = () => {
     const next = (voiceIdx + 1) % VOICES.length;
     setVoiceIdx(next);
-    speakAssistivePrompt(`Narrator voice changed to ${VOICES[next]}.`);
+    speakAssistivePrompt(`Voice ${VOICES[next]}.`);
   };
 
   const cycleLanguage = () => {
     const next = (langIdx + 1) % LANGUAGES.length;
     setLangIdx(next);
-    speakAssistivePrompt(`Primary app and translation language set to ${LANGUAGES[next]}.`);
+    speakAssistivePrompt(`Language ${LANGUAGES[next]}.`);
   };
 
   const checkForUpdates = async () => {
     setUpdateStatus('CHECKING...');
-    speakAssistivePrompt('Checking Blind-ER server for AI model updates.');
     try {
       const res = await fetch(`${ENV.API_BASE_URL}/health`);
       const data = await res.json();
       const ver = data?.version || '2.4.0';
       setUpdateStatus(`v${ver} LATEST`);
-      speakAssistivePrompt(
-        `Blind-ER version ${ver} is up to date. Custom C R N N weights and Gemini 3 Flash are online.`
-      );
+      speakAssistivePrompt(`Version ${ver} is up to date.`);
     } catch {
-      setUpdateStatus('v2.4.0 LOCAL');
-      speakAssistivePrompt('Blind-ER version 2.4.0 local runtime is up to date.');
+      setUpdateStatus('v2.4.0 READY');
+      speakAssistivePrompt('System is up to date.');
     }
   };
 
   return (
     <FeatureLayoutTemplate
-      featureTitle="Blind-ER System Settings"
+      featureTitle="Settings"
       onBack={() => navigation?.navigate?.('Home')}
       primaryAction={{
         label: 'Volume',
         icon: '🔊',
-        hint: 'Tap again to adjust master volume.',
+        hint: 'Double tap to change volume.',
         onDoubleTap: cycleVolume,
       }}
       secondaryAction={{
         label: 'Tone',
         icon: '🎚️',
-        hint: 'Tap again to cycle voice tone and reading speed.',
+        hint: 'Double tap to change speed.',
         onDoubleTap: cycleTone,
       }}
       nextLabel="Lang"
-      nextHint="Tap again to switch primary translation language."
+      nextHint="Double tap to switch language."
       onNext={cycleLanguage}
-      overflowActions={[
-        { label: 'Check for Updates', onExecute: checkForUpdates },
-        {
-          label: 'Back to Visual Setup',
-          onExecute: () => navigation?.navigate?.('Onboarding'),
-        },
-      ]}
     >
       <View style={styles.listContainer}>
         <AccessibleTouchable
-          label={`Volume Control: currently ${VOLUMES[volIdx]}`}
-          ttsHint="Tap again to change volume level."
+          label={`Volume ${VOLUMES[volIdx]}`}
+          ttsHint="Double tap to change."
           onDoubleTap={cycleVolume}
           style={styles.settingCard}
         >
@@ -123,8 +111,8 @@ export default function SettingsScreen({ navigation }) {
         </AccessibleTouchable>
 
         <AccessibleTouchable
-          label={`Tone and Pacing: currently ${TONES[toneIdx].label}`}
-          ttsHint="Tap again to change voice tone and reading speed."
+          label={`Tone ${TONES[toneIdx].label}`}
+          ttsHint="Double tap to change."
           onDoubleTap={cycleTone}
           style={styles.settingCard}
         >
@@ -133,8 +121,8 @@ export default function SettingsScreen({ navigation }) {
         </AccessibleTouchable>
 
         <AccessibleTouchable
-          label={`Change Narrator Voice: currently ${VOICES[voiceIdx]}`}
-          ttsHint="Tap again to switch narrator voice."
+          label={`Voice ${VOICES[voiceIdx]}`}
+          ttsHint="Double tap to change."
           onDoubleTap={cycleVoice}
           style={styles.settingCard}
         >
@@ -143,8 +131,8 @@ export default function SettingsScreen({ navigation }) {
         </AccessibleTouchable>
 
         <AccessibleTouchable
-          label={`Change Language: currently ${LANGUAGES[langIdx]}`}
-          ttsHint="Tap again to switch translation and TTS language."
+          label={`Language ${LANGUAGES[langIdx]}`}
+          ttsHint="Double tap to change."
           onDoubleTap={cycleLanguage}
           style={styles.settingCard}
         >
@@ -153,8 +141,8 @@ export default function SettingsScreen({ navigation }) {
         </AccessibleTouchable>
 
         <AccessibleTouchable
-          label={`Check for Updates: status ${updateStatus}`}
-          ttsHint="Tap again to check for model and app updates."
+          label="Check for Updates"
+          ttsHint="Double tap to verify."
           onDoubleTap={checkForUpdates}
           style={[styles.settingCard, styles.updateCardYellow]}
         >
@@ -208,4 +196,3 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 });
-

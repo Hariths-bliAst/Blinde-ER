@@ -1,10 +1,10 @@
 /**
  * Blind-ER Screen 6: AuditoryGamesScreen.js
- * 4 Playable Auditory Games:
- *   1. Pitch Training (Higher vs. Lower frequency)
- *   2. Note Recognising (Identify A4, C4, E4, G4)
- *   3. Chord Identifying (Major vs. Minor vs. Diminished Triad)
- *   4. Audio Pattern Match (3-Note Spatial Contour Memory)
+ * 4 Playable Auditory Games with concise voice prompts:
+ *   1. Pitch Training
+ *   2. Note Recognising
+ *   3. Chord Identifying
+ *   4. Audio Pattern Match
  */
 
 import React, { useState, useEffect } from 'react';
@@ -18,34 +18,34 @@ const GAMES = [
   {
     id: 'PITCH',
     title: 'Pitch Training',
-    prompt: 'Reference tone 440 Hz followed by 587 Hz. Is the 2nd tone Higher or Lower?',
+    prompt: 'Is the second tone higher or lower?',
     choices: ['Higher Pitch', 'Lower Pitch', 'Same Pitch'],
     correctIdx: 0,
-    audioDescription: 'Playing 440 Hertz... Now playing 587 Hertz.',
+    audioDescription: 'Tone one: 440 Hertz. Tone two: 587 Hertz.',
   },
   {
     id: 'NOTE',
     title: 'Note Recognising',
-    prompt: 'Identify the concert reference note played with harmonic overtones.',
-    choices: ['Note A4 (440 Hz)', 'Note C4 (261 Hz)', 'Note E4 (330 Hz)', 'Note G4 (392 Hz)'],
+    prompt: 'Identify the reference musical note.',
+    choices: ['Note A4', 'Note C4', 'Note E4', 'Note G4'],
     correctIdx: 0,
-    audioDescription: 'Playing concert pitch Note A 4, 440 Hertz.',
+    audioDescription: 'Playing Note A 4.',
   },
   {
     id: 'CHORD',
     title: 'Chord Identifying',
-    prompt: 'Three notes played simultaneously as a triad. Identify the chord quality!',
-    choices: ['C Major Triad (Bright)', 'A Minor Triad (Warm)', 'B Diminished Triad (Tense)'],
+    prompt: 'Identify the three-note chord quality.',
+    choices: ['C Major Triad', 'A Minor Triad', 'B Diminished Triad'],
     correctIdx: 0,
-    audioDescription: 'Playing triad: C 4, E 4, and G 4 together.',
+    audioDescription: 'Playing C Major triad.',
   },
   {
     id: 'MEMORY',
     title: 'Audio Pattern Match',
-    prompt: 'Memorize the 3-note spatial melody contour and match its shape!',
-    choices: ['Low -> Mid -> High', 'High -> Mid -> Low', 'Low -> High -> Low (Arch)'],
+    prompt: 'Match the three-note melody contour.',
+    choices: ['Low -> Mid -> High', 'High -> Mid -> Low', 'Low -> High -> Low'],
     correctIdx: 2,
-    audioDescription: 'Playing 3-note pattern: Low 330 Hz, High 660 Hz, Low 330 Hz.',
+    audioDescription: 'Low, High, Low.',
   },
 ];
 
@@ -59,9 +59,7 @@ export default function AuditoryGamesScreen({ navigation }) {
   const currentChoice = currentGame.choices[choiceIdx];
 
   useEffect(() => {
-    speakAssistivePrompt(
-      `Auditory Games Suite. Game 1 of 4: ${currentGame.title}. ${currentGame.prompt}`
-    );
+    speakAssistivePrompt(`${currentGame.title}. ${currentGame.prompt}`);
   }, []);
 
   const playSoundChallenge = () => {
@@ -71,9 +69,7 @@ export default function AuditoryGamesScreen({ navigation }) {
   const cycleChoice = () => {
     const next = (choiceIdx + 1) % currentGame.choices.length;
     setChoiceIdx(next);
-    speakAssistivePrompt(
-      `Selected choice: ${currentGame.choices[next]}. Tap Next in the bottom bar to submit.`
-    );
+    speakAssistivePrompt(currentGame.choices[next]);
   };
 
   const submitAnswer = () => {
@@ -82,14 +78,10 @@ export default function AuditoryGamesScreen({ navigation }) {
       const nextStreak = streak + 1;
       setScore(nextScore);
       setStreak(nextStreak);
-      speakAssistivePrompt(
-        `Correct! ${currentChoice}. Score is now ${nextScore}, streak ${nextStreak}.`
-      );
+      speakAssistivePrompt(`Correct. Score ${nextScore}.`);
     } else {
       setStreak(0);
-      speakAssistivePrompt(
-        `Not quite. You chose ${currentChoice}. Tap Hear to listen again or cycle your choice.`
-      );
+      speakAssistivePrompt('Try again.');
     }
   };
 
@@ -97,41 +89,39 @@ export default function AuditoryGamesScreen({ navigation }) {
     const next = (gameIdx + 1) % GAMES.length;
     setGameIdx(next);
     setChoiceIdx(0);
-    speakAssistivePrompt(
-      `Switched to Game ${next + 1}: ${GAMES[next].title}. ${GAMES[next].prompt}`
-    );
+    speakAssistivePrompt(`${GAMES[next].title}.`);
   };
 
   return (
     <FeatureLayoutTemplate
-      featureTitle="Auditory Games Suite"
+      featureTitle="Auditory Games"
       onBack={() => navigation?.navigate?.('Home')}
       primaryAction={{
         label: 'Hear',
         icon: '🎵',
-        hint: 'Tap again to hear the sound challenge.',
+        hint: 'Double tap to hear sound.',
         onDoubleTap: playSoundChallenge,
       }}
       secondaryAction={{
         label: 'Choice',
         icon: '⇄',
-        hint: 'Tap again to cycle your answer choice.',
+        hint: 'Double tap to switch choice.',
         onDoubleTap: cycleChoice,
       }}
       nextLabel="Submit"
-      nextHint="Tap again to check if your selected answer is correct."
+      nextHint="Double tap to submit."
       onNext={submitAnswer}
       overflowActions={[
         {
-          label: 'Switch Game Mode',
+          label: 'Switch Game',
           onExecute: switchGameMode,
         },
       ]}
     >
       <View style={styles.container}>
         <AccessibleTouchable
-          label={`${currentGame.title}. Score ${score}, Streak ${streak}.`}
-          ttsHint="Tap again to hear the sound challenge."
+          label={currentGame.title}
+          ttsHint="Double tap to hear sound."
           onDoubleTap={playSoundChallenge}
           style={styles.gameHeaderCard}
         >
@@ -143,8 +133,8 @@ export default function AuditoryGamesScreen({ navigation }) {
         </AccessibleTouchable>
 
         <AccessibleTouchable
-          label={`Current Answer Choice: ${currentChoice}`}
-          ttsHint="Tap again to cycle to the next answer choice."
+          label={currentChoice}
+          ttsHint="Double tap to switch choice."
           onDoubleTap={cycleChoice}
           style={styles.choiceCard}
         >
@@ -214,4 +204,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
