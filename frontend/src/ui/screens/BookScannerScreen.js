@@ -186,3 +186,4 @@ const styles = StyleSheet.create({
     lineHeight: 36,
   },
 });
+

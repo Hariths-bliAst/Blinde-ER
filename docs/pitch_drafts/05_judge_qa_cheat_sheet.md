@@ -25,3 +25,4 @@
 ### Q4: "How did your 5-person team collaborate on the codebase without stepping on each other's toes or leaking API keys?"
 **Winning Answer:**
 > *"We enforced two strict software engineering rules from Day 1: First, **Strict Separation of Concerns**—all visual themes and stylesheets (`*.styles.js`) live in `frontend/src/ui/`, completely isolated from our camera and AI controllers in `frontend/src/logic/` and `backend/`. Second, a **Zero-Trust Security Mandate** where all API keys and model paths are loaded from `.env` files blocked by `.gitignore`."*
+

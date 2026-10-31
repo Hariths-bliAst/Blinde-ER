@@ -858,34 +858,36 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
                 <span class="setting-val" style="font-size:18px;">OPEN →</span>
               </button>
 
-              <!-- Extension 1: Ray-Ban Meta Smart Glasses -->
+              <!-- Extension 1: Hardware Integration Placeholder (Meta Smart Glasses / BLE) -->
               <button
                 type="button"
                 class="setting-row-card a11y-touchable"
-                data-label="Extension: Ray-Ban Meta Smart Glasses"
-                data-hint="Hands-free real-time P O V monitoring via Bluetooth smart glasses. Tap again to connect."
+                style="border-style: dashed; border-color: var(--accent-yellow);"
+                data-label="Hardware Integration Placeholder: Ray-Ban Meta Smart Glasses and Wearable S D K"
+                data-hint="Modular placeholder slot for Bluetooth smart glasses and wearable camera streams. Tap again to open."
                 data-action="nav-hardware-meta"
               >
                 <div class="setting-left">
-                  <span class="setting-title">🕶️ Meta Smart Glasses</span>
-                  <span class="setting-sub">Wearable Extension • Real-Time POV HUD</span>
+                  <span class="setting-title">🔌 Hardware Integration</span>
+                  <span class="setting-sub">[PLACEHOLDER] Meta Glasses • BLE Cane • ESP32</span>
                 </div>
-                <span class="setting-val">BLE 94%</span>
+                <span class="setting-val">SDK SLOT</span>
               </button>
 
-              <!-- Extension 2: Be My Eyes Bridge -->
+              <!-- Extension 2: App Extension Placeholder (Be My Eyes Bridge) -->
               <button
                 type="button"
                 class="setting-row-card a11y-touchable"
-                data-label="Extension: Be My Eyes App Bridge"
-                data-hint="Connect live volunteer and AI visual interpreter with C R N N text telemetry. Tap again to open."
+                style="border-style: dashed; border-color: #8E8E93;"
+                data-label="App Extension Placeholder: Be My Eyes Volunteer Bridge"
+                data-hint="Modular placeholder slot for external assistive app extensions like Be My Eyes. Tap again to open."
                 data-action="nav-hardware-bemyeyes"
               >
                 <div class="setting-left">
-                  <span class="setting-title">🤝 Be My Eyes Bridge</span>
-                  <span class="setting-sub">App Extension • Volunteer + AI Escalation</span>
+                  <span class="setting-title">🤝 App Extension Slot</span>
+                  <span class="setting-sub">[PLACEHOLDER] Be My Eyes API Bridge</span>
                 </div>
-                <span class="setting-val">READY</span>
+                <span class="setting-val">EXT SLOT</span>
               </button>
             </div>
           </div>
@@ -1153,15 +1155,16 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
       </section>
 
       <!-- ================================================================= -->
-      <!-- SCREEN 8: EXTENSIONS — META SMART GLASSES & BE MY EYES            -->
+      <!-- SCREEN 8: HARDWARE & EXTENSION INTEGRATION PLACEHOLDER            -->
       <!-- ================================================================= -->
-      <section class="app-screen" id="screen-hardware" aria-label="Assistive Extensions: Meta Glasses and Be My Eyes">
+      <section class="app-screen" id="screen-hardware" aria-label="Hardware and Extension Integration Placeholder">
         <div class="feature-template-wrap">
           <div class="feature-hero-75">
             <div
               class="feature-top-card a11y-touchable"
-              data-label="Ray-Ban Meta Smart Glasses Point of View Feed"
-              data-hint="Tap again to run live spatial monitoring."
+              style="border-style: dashed;"
+              data-label="Hardware and Extension Integration Placeholder Slot"
+              data-hint="Tap again to test the hardware integration placeholder hook."
               data-action="hw-meta-live"
             >
               <video
@@ -1172,32 +1175,32 @@ MOBILE_APP_HTML = r"""<!DOCTYPE html>
                 style="display:none; position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0.55;"
               ></video>
               <div class="card-badge-row" onclick="event.stopPropagation()" style="z-index:2;">
-                <span class="eyebrow-tag" id="hwDeviceBanner">🕶️ EXTENSION • META GLASSES BLE 94%</span>
+                <span class="eyebrow-tag" id="hwDeviceBanner">🔌 [PLACEHOLDER] HARDWARE &amp; EXT SDK SLOT</span>
                 <button type="button" class="upload-pill-btn" onclick="toggleHardwareWebcam(event)" id="hwCamToggleBtn">
-                  📷 Live POV Cam
+                  📷 Test Cam Hook
                 </button>
               </div>
               <div style="z-index:2; text-align:left; width:100%;">
                 <div style="font-size:12px; font-weight:800; color:var(--accent-yellow); margin-bottom:4px;" id="hwSceneTitle">
-                  POV SCENE 1/3: URBAN CROSSWALK &amp; TRAFFIC SIGNAL
+                  [SLOT 1/3] RAY-BAN META SMART GLASSES (DAT SDK PLACEHOLDER)
                 </div>
-                <div style="font-family:monospace; font-size:15px; font-weight:800; color:#FFFFFF; margin-bottom:4px;" id="hwSceneBanner">
-                  [HUD TARGET] WALK SIGNAL: 14 SEC • 5TH AVE
+                <div style="font-family:monospace; font-size:14px; font-weight:800; color:#FFFFFF; margin-bottom:4px;" id="hwSceneBanner">
+                  HOOK: hardwarePlaceholder.js → POST /api/hardware-assist
                 </div>
                 <div style="font-size:13px; color:#D1D1D6;" id="hwSceneDesc">
-                  Pedestrian crossing countdown active. Tactile paving aligned at 12 o’clock; cyclist stopped on left.
+                  Plug physical BLE / RTSP wearable stream or Be My Eyes SDK key here. Use bottom bar to test payload.
                 </div>
               </div>
             </div>
 
             <div class="feature-reader-card">
               <div class="card-badge-row">
-                <span class="eyebrow-tag" id="hwBridgeBadge">🔊 META GLASSES SPATIAL AUDIO</span>
-                <span class="status-chip" id="hwAutoPill">MANUAL</span>
+                <span class="eyebrow-tag" id="hwBridgeBadge">🛠️ PLACEHOLDER PAYLOAD OUTPUT</span>
+                <span class="status-chip" id="hwAutoPill">SDK SLOT READY</span>
               </div>
               <div class="reader-scroll">
                 <p class="reader-large-copy" id="hwOutputText">
-                  Extension Ready. Double-tap "Meta Live" for hands-free spatial monitoring, or double-tap "Be My Eyes" to bridge a live volunteer + AI visual interpreter.
+                  [Hardware Integration Placeholder]: Ready to bind external wearable hardware (Ray-Ban Meta Smart Glasses, ESP32-CAM, Ultrasonic Smart Cane) or third-party app extensions (Be My Eyes). Double-tap "Meta Live" or "BeMyEyes" below to test the API hook.
                 </p>
               </div>
             </div>
